@@ -115,7 +115,7 @@ app.get("/verse-of-the-day", (req: Request, res: Response) => {
   });
 });
 
-app.listen(3003, () => {
-  console.log("Server is running on port 3003");
+const PORT = process.env.PORT || 3003;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
-
