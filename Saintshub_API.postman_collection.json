@@ -1,0 +1,641 @@
+{
+	"info": {
+		"_postman_id": "saintshub-dashboard-api",
+		"name": "Saintshub Dashboard API",
+		"description": "Complete API collection for Saintshub Dashboard Server",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Sign Up",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set(\"token\", response.token);",
+									"    pm.environment.set(\"user_id\", response.user._id);",
+									"    console.log(\"Token saved:\", response.token);",
+									"    console.log(\"User ID:\", response.user._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John\",\n  \"surname\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"TestPassword123!\",\n  \"confirmPassword\": \"TestPassword123!\",\n  \"avatar\": \"https://randomuser.me/api/portraits/men/1.jpg\",\n  \"language\": \"en\",\n  \"role\": \"user\",\n  \"selectedChurchId\": \"\",\n  \"otherChurchName\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signup",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signup"]
+						},
+						"description": "Register a new user. Role can be 'user', 'pastor', or 'it'. Pastor and IT roles will trigger admin notification emails."
+					},
+					"response": []
+				},
+				{
+					"name": "Sign In",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set(\"token\", response.token);",
+									"    pm.environment.set(\"user_id\", response.user._id);",
+									"    console.log(\"Token saved:\", response.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"TestPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signin"]
+						},
+						"description": "Login with existing credentials. Returns JWT token valid for 5 hours."
+					},
+					"response": []
+				},
+				{
+					"name": "Sign Out",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/signout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signout"]
+						},
+						"description": "Clear authentication cookie"
+					},
+					"response": []
+				}
+			],
+			"description": "User authentication endpoints"
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/user",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user"]
+						},
+						"description": "Get authenticated user details"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Info",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Updated\",\n  \"surname\": \"Doe Updated\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/update-user",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "update-user"]
+						},
+						"description": "Update user name and surname. Email updates are NOT allowed for security reasons."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Avatar",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"avatar\": {\n    \"public_id\": \"cb2df990-f875-4563-9543-0b0863a7700d\",\n    \"url\": \"https://randomuser.me/api/portraits/men/2.jpg\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/update-avatar",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "update-avatar"]
+						},
+						"description": "Update user avatar image. MUST include both public_id and url to maintain data integrity."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Password",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"currentPassword\": \"TestPassword123!\",\n  \"password\": \"NewPassword123!\",\n  \"confirmPassword\": \"NewPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/update-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "update-password"]
+						},
+						"description": "Change user password. Requires current password verification for security. New password must be different from current and at least 8 characters."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/user/logout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "logout"]
+						},
+						"description": "Logout current user and invalidate token"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Account",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"password\": \"TestPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/delete-account",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "delete-account"]
+						},
+						"description": "⚠️ PERMANENTLY delete user account and all associated data. Requires password verification. WARNING: This action is IRREVERSIBLE. All churches created by this user will also be deleted."
+					},
+					"response": []
+				}
+			],
+			"description": "User profile management endpoints (all protected)"
+		},
+		{
+			"name": "Church Management",
+			"item": [
+				{
+					"name": "Create Church",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set(\"church_id\", response._id);",
+									"    console.log(\"Church ID saved:\", response._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Grace Community Church\",\n  \"principal\": {\n    \"pastor\": \"Pastor David Smith\",\n    \"wife\": \"Sarah Smith\",\n    \"image\": \"https://randomuser.me/api/portraits/men/32.jpg\",\n    \"description\": \"Leading our community in faith for 15 years\"\n  },\n  \"location\": \"123 Main Street, New York, NY 10001\",\n  \"image\": \"https://images.unsplash.com/photo-1438032005730-c779502df39b?w=800\",\n  \"banner\": [\n    \"https://images.unsplash.com/photo-1438032005730-c779502df39b?w=1200\",\n    \"https://images.unsplash.com/photo-1478147427282-58a87a120781?w=1200\"\n  ],\n  \"securities\": {\n    \"deacons\": [\n      {\n        \"names\": \"Michael Johnson\",\n        \"descriptions\": \"Head Deacon, serving since 2015\",\n        \"image\": \"https://randomuser.me/api/portraits/men/45.jpg\"\n      }\n    ],\n    \"trustees\": [\n      {\n        \"names\": \"Robert Williams\",\n        \"descriptions\": \"Financial oversight and property management\",\n        \"image\": \"https://randomuser.me/api/portraits/men/67.jpg\"\n      }\n    ]\n  },\n  \"oldServices\": [\n    {\n      \"title\": \"Easter Sunday Service 2024\",\n      \"preacher\": \"Pastor David Smith\",\n      \"sermon\": \"The Power of Resurrection\"\n    }\n  ],\n  \"liveServices\": [\n    {\n      \"title\": \"Sunday Morning Worship\",\n      \"preacher\": \"Pastor David Smith\",\n      \"sermon\": \"Walking in Faith\"\n    }\n  ],\n  \"gallery\": [\n    \"https://images.unsplash.com/photo-1438032005730-c779502df39b?w=600\",\n    \"https://images.unsplash.com/photo-1478147427282-58a87a120781?w=600\",\n    \"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600\"\n  ],\n  \"songs\": [\n    {\n      \"title\": \"Amazing Grace\",\n      \"songUrl\": \"https://example.com/songs/amazing-grace.mp3\"\n    },\n    {\n      \"title\": \"How Great Thou Art\",\n      \"songUrl\": \"https://example.com/songs/how-great.mp3\"\n    }\n  ],\n  \"logo\": \"https://via.placeholder.com/200x200?text=Church+Logo\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/create-church",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "create-church"]
+						},
+						"description": "Create a new church with full details. IMPORTANT: Do NOT include 'user' field - it is automatically populated from your authenticated session. Requires admin or admin candidate privileges."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Churches",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches"]
+						},
+						"description": "Get all churches (protected endpoint)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Public Church List",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/public/churches",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "public", "churches"]
+						},
+						"description": "Get public list of churches (only id and name, no auth required)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Church",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/church/{{church_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "church", "{{church_id}}"]
+						},
+						"description": "Get a single church by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Church Field (Name)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Grace Community Church - Updated\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}/name",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}", "name"]
+						},
+						"description": "Update a specific field of a church. Replace 'name' with other fields like: principal, location, image, banner, securities, etc."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Full Church",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Church Name\",\n  \"location\": \"456 New Avenue, Los Angeles, CA 90001\",\n  \"image\": \"https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}"]
+						},
+						"description": "Update multiple fields of a church at once"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Church",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/church/{{church_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "church", "{{church_id}}"]
+						},
+						"description": "Delete a church by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Gallery Image",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}/gallery/0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}", "gallery", "0"]
+						},
+						"description": "Delete an image from gallery by index (0, 1, 2, etc.)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Banner Image",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}/banner/0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}", "banner", "0"]
+						},
+						"description": "Delete a banner image by index"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Past Service",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}/past-service/0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}", "past-service", "0"]
+						},
+						"description": "Delete a past service by index"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Deacon",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}/deacon/0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}", "deacon", "0"]
+						},
+						"description": "Delete a deacon by index"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Trustee",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}/trustee/0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}", "trustee", "0"]
+						},
+						"description": "Delete a trustee by index"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Song",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}/song/0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}", "song", "0"]
+						},
+						"description": "Delete a song by index"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Live Service",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}/live/0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}", "live", "0"]
+						},
+						"description": "Delete a live service by index"
+					},
+					"response": []
+				}
+			],
+			"description": "Church CRUD operations and management"
+		},
+		{
+			"name": "File Upload",
+			"item": [
+				{
+					"name": "Upload to Cloudinary",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "profileImage",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/upload-file-to-cloud",
+							"host": ["{{base_url}}"],
+							"path": ["api", "upload-file-to-cloud"]
+						},
+						"description": "Upload an image to Cloudinary. Returns secure_url for use in church/user data."
+					},
+					"response": []
+				},
+				{
+					"name": "Upload File Locally",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/upload-file",
+							"host": ["{{base_url}}"],
+							"path": ["api", "upload-file"]
+						},
+						"description": "Upload file to local server public directory"
+					},
+					"response": []
+				}
+			],
+			"description": "File upload endpoints"
+		},
+		{
+			"name": "Documents",
+			"item": [
+				{
+					"name": "Get All Documents",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/documents",
+							"host": ["{{base_url}}"],
+							"path": ["api", "documents"]
+						},
+						"description": "Get all documents/banners"
+					},
+					"response": []
+				}
+			],
+			"description": "Document management"
+		},
+		{
+			"name": "Special Endpoints",
+			"item": [
+				{
+					"name": "Verse of the Day",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/verse-of-the-day",
+							"host": ["{{base_url}}"],
+							"path": ["verse-of-the-day"]
+						},
+						"description": "Get daily Bible verse (scraped from external site)"
+					},
+					"response": []
+				}
+			],
+			"description": "Special features and utilities"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3003",
+			"type": "string"
+		}
+	]
+}

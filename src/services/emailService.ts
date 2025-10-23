@@ -4,6 +4,7 @@ import i18next, { Resource } from 'i18next';
 import path from 'path';
 import fs from 'fs';
 import { UserDocument } from '../models/User'; // Adjust path if needed
+import * as EmailTemplates from '../templates/emailTemplates';
 
 // --- i18next Configuration ---
 const localesPath = path.resolve(__dirname, '../locales');
@@ -49,46 +50,47 @@ const getEnvVariable = (name: string, isOptional = false, defaultValue: string |
     return value || defaultValue; // Return value or default
 }
 
-const mailtrapConfig = {
-  host: process.env.NODE_ENV === 'production'
-    ? getEnvVariable('MAILTRAP_PROD_HOST')
-    : getEnvVariable('MAILTRAP_HOST'),
-  port: parseInt(
-    (process.env.NODE_ENV === 'production'
-      ? getEnvVariable('MAILTRAP_PROD_PORT')
-      : getEnvVariable('MAILTRAP_PORT')) || '2525', // Default port if not set
-    10
-  ),
+// --- Email Configuration ---
+// Hostinger Business Email SMTP Configuration
+const emailUser = getEnvVariable('EMAIL_USER');
+const emailPass = getEnvVariable('EMAIL_PASS');
+
+console.log('🔍 Email Debug Info:');
+console.log('   User:', emailUser);
+console.log('   Pass length:', emailPass?.length);
+console.log('   Pass first char:', emailPass?.charAt(0));
+console.log('   Pass last char:', emailPass?.charAt(emailPass.length - 1));
+
+const emailConfig = {
+  host: 'smtp.hostinger.com',
+  port: 465,
+  secure: true, // true for port 465
   auth: {
-    user: process.env.NODE_ENV === 'production'
-      ? getEnvVariable('MAILTRAP_PROD_USER')
-      : getEnvVariable('MAILTRAP_USER'),
-    pass: process.env.NODE_ENV === 'production'
-      ? getEnvVariable('MAILTRAP_PROD_PASS')
-      : getEnvVariable('MAILTRAP_PASS'),
+    user: emailUser,
+    pass: emailPass,
   },
-  // Optional: Add secure connection for production if needed (e.g., for port 465)
-  secure: process.env.NODE_ENV === 'production' && process.env.MAILTRAP_PROD_PORT === '465',
-};
+  authMethod: 'LOGIN' // Try LOGIN instead of PLAIN
+} as any; // Type assertion to avoid TypeScript strict checking
 
 let transporter: nodemailer.Transporter | null = null;
 
 // Only create transporter if config is valid
-if (mailtrapConfig.host && mailtrapConfig.port && mailtrapConfig.auth.user && mailtrapConfig.auth.pass) {
-    transporter = nodemailer.createTransport(mailtrapConfig);
+if (emailConfig.auth.user && emailConfig.auth.pass) {
+    transporter = nodemailer.createTransport(emailConfig);
 
     transporter.verify((error, success) => {
       if (error) {
-        console.error('Error configuring mail transporter:', error);
+        console.error('❌ Email transporter error:', error.message);
+        console.error('Error details:', error);
         transporter = null; // Invalidate transporter on error
       } else {
-        console.log('Mail transporter configured successfully. Ready to send emails.');
+        console.log('✅ Mail transporter configured successfully. Ready to send emails.');
       }
     });
 } else {
-    console.error("Mailtrap environment variables are not fully configured! Email functionality will be disabled.");
+    console.error("❌ Email environment variables are not fully configured! EMAIL_USER or EMAIL_PASS missing.");
 }
-// --- End Nodemailer Configuration ---
+// --- End Email Configuration ---
 
 
 // --- Helper Functions ---
@@ -298,4 +300,155 @@ export const sendVerificationEmail = async (user: UserDocument, role: string, ch
       console.error(`Failed to send verification email to ${user.email}:`, error);
   }
 };
-// --- End Exported Email Functions --- 
+
+// --- New Modern Email Functions ---
+
+/**
+ * Send modern welcome email with beautiful template
+ */
+export const sendModernWelcomeEmail = async (userEmail: string, userName: string) => {
+  if (!transporter) {
+    console.error('Welcome email not sent: Transporter not available.');
+    return;
+  }
+
+  const fromAddress = getEnvVariable('EMAIL_FROM_NOREPLY', true) || '"SaintsHub" <noreply@saintshub.com>';
+  
+  try {
+    const htmlContent = EmailTemplates.welcomeEmailTemplate(userName, userEmail);
+    await sendEmail(userEmail, 'Welcome to SaintsHub! 🙏', htmlContent, fromAddress);
+    console.log(`✅ Welcome email sent successfully to ${userEmail}`);
+  } catch (error) {
+    console.error(`Failed to send welcome email to ${userEmail}:`, error);
+  }
+};
+
+/**
+ * Send password reset email with secure reset link
+ */
+export const sendPasswordResetEmail = async (
+  userEmail: string, 
+  userName: string, 
+  resetToken: string,
+  expiryMinutes: number = 60
+) => {
+  if (!transporter) {
+    console.error('Password reset email not sent: Transporter not available.');
+    return;
+  }
+
+  const fromAddress = getEnvVariable('EMAIL_FROM_NOREPLY', true) || '"SaintsHub Security" <noreply@saintshub.com>';
+  const baseUrl = getEnvVariable('FRONTEND_URL', false, 'https://saintshub.com');
+  const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
+  const expiryTime = expiryMinutes >= 60 ? `${Math.floor(expiryMinutes / 60)} hour${Math.floor(expiryMinutes / 60) > 1 ? 's' : ''}` : `${expiryMinutes} minutes`;
+  
+  try {
+    const htmlContent = EmailTemplates.passwordResetTemplate(userName, resetLink, expiryTime);
+    await sendEmail(userEmail, 'Reset Your SaintsHub Password 🔐', htmlContent, fromAddress);
+    console.log(`✅ Password reset email sent successfully to ${userEmail}`);
+  } catch (error) {
+    console.error(`Failed to send password reset email to ${userEmail}:`, error);
+  }
+};
+
+/**
+ * Send admin request pending email (for Pastor/IT roles)
+ */
+export const sendAdminRequestPendingEmail = async (
+  userEmail: string,
+  userName: string,
+  requestedRole: 'Pastor' | 'IT' | 'Admin'
+) => {
+  if (!transporter) {
+    console.error('Admin request email not sent: Transporter not available.');
+    return;
+  }
+
+  const fromAddress = getEnvVariable('EMAIL_FROM_ADMIN', true) || '"SaintsHub Admin" <admin@saintshub.com>';
+  
+  try {
+    const htmlContent = EmailTemplates.adminRequestPendingTemplate(userName, requestedRole);
+    await sendEmail(userEmail, 'Admin Access Request Received 👨‍💼', htmlContent, fromAddress);
+    console.log(`✅ Admin request pending email sent to ${userEmail}`);
+  } catch (error) {
+    console.error(`Failed to send admin request email to ${userEmail}:`, error);
+  }
+};
+
+/**
+ * Send admin approved email
+ */
+export const sendAdminApprovedEmail = async (
+  userEmail: string,
+  userName: string,
+  role: string
+) => {
+  if (!transporter) {
+    console.error('Admin approved email not sent: Transporter not available.');
+    return;
+  }
+
+  const fromAddress = getEnvVariable('EMAIL_FROM_ADMIN', true) || '"SaintsHub Admin" <admin@saintshub.com>';
+  
+  try {
+    const htmlContent = EmailTemplates.adminApprovedTemplate(userName, role);
+    await sendEmail(userEmail, 'Congratulations! Admin Access Granted 🎉', htmlContent, fromAddress);
+    console.log(`✅ Admin approved email sent to ${userEmail}`);
+  } catch (error) {
+    console.error(`Failed to send admin approved email to ${userEmail}:`, error);
+  }
+};
+
+/**
+ * Send profile update confirmation email
+ */
+export const sendProfileUpdateEmail = async (
+  userEmail: string,
+  userName: string,
+  updatedField: string,
+  oldValue: string,
+  newValue: string
+) => {
+  if (!transporter) {
+    console.error('Profile update email not sent: Transporter not available.');
+    return;
+  }
+
+  const fromAddress = getEnvVariable('EMAIL_FROM_NOREPLY', true) || '"SaintsHub" <noreply@saintshub.com>';
+  
+  try {
+    const htmlContent = EmailTemplates.profileUpdateTemplate(userName, updatedField, oldValue, newValue);
+    await sendEmail(userEmail, `Your ${updatedField} Has Been Updated ✏️`, htmlContent, fromAddress);
+    console.log(`✅ Profile update email sent to ${userEmail}`);
+  } catch (error) {
+    console.error(`Failed to send profile update email to ${userEmail}:`, error);
+  }
+};
+
+/**
+ * Send security alert email
+ */
+export const sendSecurityAlertEmail = async (
+  userEmail: string,
+  userName: string,
+  alertType: string,
+  details: string,
+  actionUrl?: string
+) => {
+  if (!transporter) {
+    console.error('Security alert email not sent: Transporter not available.');
+    return;
+  }
+
+  const fromAddress = getEnvVariable('EMAIL_FROM_ADMIN', true) || '"SaintsHub Security" <security@saintshub.com>';
+  
+  try {
+    const htmlContent = EmailTemplates.securityAlertTemplate(userName, alertType, details, actionUrl);
+    await sendEmail(userEmail, '🚨 Security Alert for Your SaintsHub Account', htmlContent, fromAddress);
+    console.log(`✅ Security alert email sent to ${userEmail}`);
+  } catch (error) {
+    console.error(`Failed to send security alert email to ${userEmail}:`, error);
+  }
+};
+
+// --- End Exported Email Functions ---

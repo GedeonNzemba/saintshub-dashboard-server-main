@@ -1,3 +1,11 @@
 node_modules
 /dist
 .env*
+
+# Allow .env within the new-backend directory
+!/new-backend/.env
+# Allow .env.example within the new-backend directory
+!/new-backend/.env.example
+
+# windsurf rules
+.windsurfrules

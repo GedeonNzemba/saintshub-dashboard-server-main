@@ -12,6 +12,8 @@ import path from "path";
 import fileParser from "../middlewares/fileParser";
 import cloudinary from "../utils/cloudinary";
 import * as emailService from '../services/emailService';
+import { authRateLimiter, uploadRateLimiter } from "../middlewares/rateLimiter";
+import { validateSignup, validateSignin } from "../middlewares/validators";
 
 
 interface MulterRequest extends Request {
@@ -32,7 +34,8 @@ const isValidRole = (role: any): role is 'pastor' | 'it' | 'user' => ['pastor', 
 
 // ******************************************** FILE UPLOADER ************************************************
 
-router.post("/upload-file", async (req, res) => {
+// SECURITY: Rate limited to 20 uploads per 15 minutes to prevent storage abuse
+router.post("/upload-file", uploadRateLimiter, async (req, res) => {
   const form = formidable({
     uploadDir: path.join(__dirname, "public"),
     filename(name, ext, part) {
@@ -45,7 +48,8 @@ router.post("/upload-file", async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post("/upload-file-to-cloud", fileParser, async (req, res) => {
+// SECURITY: Rate limited to 20 uploads per 15 minutes to prevent storage abuse
+router.post("/upload-file-to-cloud", uploadRateLimiter, fileParser, async (req, res) => {
   const { files } = req;
   const myFile = files?.profileImage;
 
@@ -72,7 +76,9 @@ router.post("/upload-file-to-cloud", fileParser, async (req, res) => {
 // ******************************************** FILE UPLOADER ENDS ************************************************
 
 // SIGN UP
-router.post("/signup", async (req, res) => {
+// SECURITY: Rate limited to 5 requests per 15 minutes to prevent account spam
+// VALIDATION: All inputs validated and sanitized
+router.post("/signup", authRateLimiter, validateSignup, async (req: Request, res: Response) => {
   try {
     const {
         name,
@@ -128,16 +134,22 @@ router.post("/signup", async (req, res) => {
 
     await newUser.save();
 
-    // --- Post-Save Actions (Emails) ---
-    // Send welcome email (don't wait for it to finish, but catch errors)
-    emailService.sendWelcomeEmail(newUser).catch((err: unknown) => {
-        console.error(`Background task failed: Sending welcome email to ${newUser.email}`, err);
+    // --- Post-Save Actions (Modern Emails) ---
+    // Send modern welcome email (asynchronously)
+    emailService.sendModernWelcomeEmail(newUser.email, newUser.name).catch((err: unknown) => {
+        console.error(`Failed to send welcome email to ${newUser.email}`, err);
     });
 
-    // Send admin notification if necessary (don't wait, catch errors)
+    // Send admin request pending email if user selected Pastor or IT role
     if (isAdminCandidate) {
-      emailService.sendAdminNotificationEmail(newUser, role, churchSelection || 'N/A').catch((err: unknown) => {
-          console.error(`Background task failed: Sending admin notification for ${newUser.email}`, err);
+      const roleMapping: { [key: string]: 'Pastor' | 'IT' } = {
+        'pastor': 'Pastor',
+        'it': 'IT'
+      };
+      const userRole = roleMapping[role] || 'Pastor';
+      
+      emailService.sendAdminRequestPendingEmail(newUser.email, newUser.name, userRole).catch((err: unknown) => {
+          console.error(`Failed to send admin request email to ${newUser.email}`, err);
       });
     }
 
@@ -165,7 +177,9 @@ router.post("/signup", async (req, res) => {
 });
 
 // SIGN IN
-router.post("/signin", async (req, res) => {
+// SECURITY: Rate limited to 5 requests per 15 minutes to prevent brute force attacks
+// VALIDATION: Email and password validated
+router.post("/signin", authRateLimiter, validateSignin, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -206,10 +220,8 @@ router.post("/signin", async (req, res) => {
 });
 
 // SIGN OUT
-router.post("/signout", (req, res) => {
-  res.clearCookie("token"); // Clear the JWT token cookie
-  res.status(200).json({ message: "Sign-out successful." });
-});
+// Note: This endpoint also invalidates the token by adding it to the blacklist
+router.post("/signout", authMiddleware, userController.logoutUser);
 
 router.get("/user", authMiddleware, userController.getUser);
 router.get('/user/logout', authMiddleware, userController.logoutUser); // New route for logout
@@ -217,6 +229,9 @@ router.get('/user/logout', authMiddleware, userController.logoutUser); // New ro
 router.put("/user/update-user", authMiddleware, userController.updateUser);
 router.put("/user/update-avatar", authMiddleware, userController.updateUserImage);
 router.put("/user/update-password", authMiddleware, userController.updatePassword);
+
+// Delete account - requires password verification
+router.delete("/user/delete-account", authMiddleware, userController.deleteUserAccount);
 
 
 
