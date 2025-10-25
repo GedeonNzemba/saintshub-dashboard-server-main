@@ -1,0 +1,934 @@
+//PATH:  saintshub\app\(app)\components\music\index.tsx
+import * as React from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  SafeAreaView,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView, 
+  TextInput, 
+  FlatList, 
+  Image,
+  Dimensions,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons'; 
+import { useRouter } from 'expo-router'; 
+import { Album, MusicFile, fetchAllSongs, Song, getSongKey } from './musicService'; 
+import MusicPlayer from './MusicPlayer';
+import { useFavoritesContext } from './FavoritesContext'; 
+import { usePlayerContext } from './PlayerContext'; // Import PlayerContext
+import { 
+  layoutStyles, 
+  colors, 
+  typography, 
+  musicIndexStyles 
+} from './styles';
+import { useDebounce } from 'use-debounce'; // Import useDebounce
+import { MUSICKIT_URI } from '../../../../utilities/tools'; // Assuming this holds the BASE API URL like http://<ip>:4004
+
+// Define the expected item structure for the carousel
+interface CarouselDisplayItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string | null;
+}
+
+// Define the structure for banner items
+interface BannerItem {
+  id: string;
+  title: string;
+  imageUrl: string;
+  description: string;
+}
+
+// --- Extracted & Memoized Components --- 
+
+// --- Recently Played Item (Internal to RecentlyPlayedSection) --- 
+const RecentlyPlayedItem = React.memo(({ item, onPlay }: { item: Song; onPlay: (item: Song) => void }) => {
+  console.log('Rendering recently played item (memo):', item.title);
+  return (
+    <TouchableOpacity 
+      style={musicIndexStyles.carouselItem} 
+      onPress={() => onPlay(item)}
+    >
+      {item.albumImage ? (
+        <Image source={{ uri: item.albumImage }} style={musicIndexStyles.carouselImage} />
+      ) : (
+        <View style={[musicIndexStyles.carouselImage, musicIndexStyles.carouselImagePlaceholder]}>
+          <Ionicons name="musical-notes-outline" size={40} color={colors.textSecondary} />
+        </View>
+      )}
+      <View style={musicIndexStyles.carouselTextContainer}>
+        <Text style={musicIndexStyles.carouselTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={musicIndexStyles.carouselSubtitle} numberOfLines={1}>{item.album}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+// --- Recently Played Section --- 
+interface RecentlyPlayedSectionProps {
+  recentlyPlayed: Song[];
+  onClear: () => void;
+  onPlay: (item: Song) => void;
+}
+const RecentlyPlayedSection = React.memo(({ recentlyPlayed, onClear, onPlay }: RecentlyPlayedSectionProps) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  console.log('Rendering Recently Played section (memo) with', recentlyPlayed?.length || 0, 'songs');
+
+  const filteredRecentlyPlayed = useMemo(() => {
+    if (!searchQuery) return recentlyPlayed || [];
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    return (recentlyPlayed || []).filter(song => 
+      song.title.toLowerCase().includes(lowerCaseQuery) || 
+      song.album.toLowerCase().includes(lowerCaseQuery)
+    );
+  }, [recentlyPlayed, searchQuery]);
+
+  return (
+    <View style={musicIndexStyles.horizontalListContainer}>
+      <View style={musicIndexStyles.sectionHeader}>
+        <Text style={musicIndexStyles.sectionTitle}>Recently Played</Text>
+        {recentlyPlayed && recentlyPlayed.length > 0 && (
+          <TouchableOpacity 
+            onPress={onClear}
+            style={musicIndexStyles.clearButton}
+          >
+            <Ionicons name="trash-outline" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      {!recentlyPlayed || recentlyPlayed.length === 0 ? (
+        <View style={musicIndexStyles.emptyStateContainer}>
+          <Ionicons name="play-circle-outline" size={50} color={colors.textSecondary} />
+          <Text style={musicIndexStyles.emptyStateText}>No recently played songs</Text>
+          <Text style={musicIndexStyles.emptyStateSubText}>Start listening to build your history</Text>
+        </View>
+      ) : (
+        <View>
+          <View style={musicIndexStyles.searchContainer}>
+            <Ionicons name="search" size={20} color={colors.textSecondary} style={musicIndexStyles.searchIcon} />
+            <TextInput
+              style={musicIndexStyles.searchInput}
+              placeholder="Search recently played..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity 
+                onPress={() => setSearchQuery('')}
+                style={musicIndexStyles.clearSearchButton}
+              >
+                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          {filteredRecentlyPlayed.length === 0 ? (
+            <View style={musicIndexStyles.emptySearchContainer}>
+              <Text style={musicIndexStyles.emptySearchText}>No songs match your search</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filteredRecentlyPlayed}
+              renderItem={({ item }) => <RecentlyPlayedItem item={item} onPlay={onPlay} />} // Pass onPlay
+              keyExtractor={(item) => item.key || `${item.album}::${item.title}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={musicIndexStyles.horizontalFlatList}
+              // Key might not be needed now, depends on FlatList optimization
+              // key={`recently-played-${recentlyPlayed.length}-${searchQuery}`}
+            />
+          )}
+        </View>
+      )}
+    </View>
+  );
+});
+
+// --- Banner Slider --- 
+interface BannerSliderProps {
+  items: BannerItem[];
+}
+const BannerSlider = React.memo(({ items }: BannerSliderProps) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
+  const screenWidth = Dimensions.get('window').width;
+  
+  // Item Styling Constants (match styles.ts)
+  const itemHorizontalMargin = 5;
+  const itemWidth = screenWidth - 32; // Width of the item content area
+  const itemWidthWithMargins = itemWidth + (itemHorizontalMargin * 2); // Full space taken by item
+
+  // Auto-scroll interval (remains the same)
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveIndex(prevIndex => {
+        const nextIndex = (prevIndex + 1) % items.length;
+        flatListRef.current?.scrollToIndex({ 
+          index: nextIndex, 
+          animated: true, 
+          // viewPosition: 0.5 // Center align might be better with margins
+        });
+        return nextIndex;
+      });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [items.length]);
+
+  // Render item without text overlay, but with subtle full overlay
+  const renderBannerItem = ({ item }: { item: BannerItem }) => (
+    // Style is mostly in styles.ts now
+    <View style={musicIndexStyles.bannerItem}>
+       <View style={musicIndexStyles.bannerImageContainer}>
+         <Image source={{ uri: item.imageUrl }} style={musicIndexStyles.bannerImage} />
+         {/* Use the new full image overlay style */}
+         <View style={musicIndexStyles.bannerImageOverlay} />
+       </View>
+    </View>
+  );
+
+  // Update active index based on scroll view (remains the same)
+  const onViewableItemsChanged = useCallback(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      // Use the index from the first viewable item
+      const newIndex = viewableItems[0].index;
+      if (newIndex !== activeIndex) {
+         setActiveIndex(newIndex);
+      }
+    }
+  }, [activeIndex]);
+
+  const viewabilityConfig = useRef({ 
+    itemVisiblePercentThreshold: 50, 
+  }).current;
+
+  if (!items || items.length === 0) {
+    return null;
+  }
+
+  return (
+    // Container handles vertical margin
+    <View style={musicIndexStyles.bannerContainer}>
+      <FlatList
+        ref={flatListRef}
+        data={items}
+        renderItem={renderBannerItem}
+        keyExtractor={(item) => item.id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        // Remove contentContainerStyle padding, margins handle spacing
+        // contentContainerStyle={{ 
+        //   paddingHorizontal: horizontalPadding // REMOVED
+        // }}
+        // Paging and snapping for centered items with margins
+        decelerationRate="fast"
+        snapToInterval={itemWidthWithMargins} // Snap to the item width PLUS margins
+        snapToAlignment="center" // Align snapped item to the center
+        // Inset needed to allow first/last items to center correctly
+        contentInset={{ 
+          // left: (screenWidth - itemWidthWithMargins) / 2, 
+          // right: (screenWidth - itemWidthWithMargins) / 2,
+          // Adjust based on precise calculation needed for centering
+          left: (screenWidth - itemWidth) / 2 - itemHorizontalMargin,
+          right: (screenWidth - itemWidth) / 2 - itemHorizontalMargin,
+        }}
+        contentOffset={{ x: -((screenWidth - itemWidth) / 2 - itemHorizontalMargin), y: 0 }} // Start scrolled correctly
+        // Viewability config
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        initialScrollIndex={0}
+        // Layout for performance
+        getItemLayout={(data, index) => ({
+          length: itemWidthWithMargins, // Item width + margins
+          offset: itemWidthWithMargins * index, // Offset includes margins
+          index,
+        })}
+        style={{ marginHorizontal: 0 }} // No horizontal margin on FlatList itself
+      />
+      {/* Pagination Removed */}
+    </View>
+  );
+});
+
+// --- Liked Songs List --- 
+interface LikedSongsListProps {
+  songs: CarouselDisplayItem[];
+  isSearchVisible: boolean;
+  searchQuery: string;
+  onSelectSong: (item: CarouselDisplayItem) => void;
+  onSeeAll: () => void;
+}
+const LikedSongsList = React.memo(({ songs, isSearchVisible, searchQuery, onSelectSong, onSeeAll }: LikedSongsListProps) => {
+  console.log('Rendering Liked Songs List (memo)');
+  return (
+    <View style={musicIndexStyles.verticalListContainer}>
+      <View style={musicIndexStyles.sectionHeader}>
+        <Text style={musicIndexStyles.sectionTitle}>
+          {isSearchVisible ? `Liked songs matching "${searchQuery}"` : "Liked Songs"}
+        </Text>
+        {!isSearchVisible && (
+           <TouchableOpacity onPress={onSeeAll}>
+             <Text style={musicIndexStyles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      {songs.length === 0 ? (
+        <View style={musicIndexStyles.emptyStateContainer}>
+          <Ionicons name={isSearchVisible ? "search-outline" : "heart-outline"} size={50} color={colors.textSecondary} />
+          <Text style={musicIndexStyles.emptyStateText}>{isSearchVisible ? "No matching liked songs" : "No liked songs yet"}</Text>
+          {!isSearchVisible && <Text style={musicIndexStyles.emptyStateSubText}>Tap the heart icon on songs to add them here</Text>}
+        </View>
+      ) : (
+        <FlatList
+          data={songs.slice(0, isSearchVisible ? undefined : 5)} // Show all results when searching
+          renderItem={({ item }) => (
+            <TouchableOpacity 
+              style={musicIndexStyles.verticalListItem}
+              onPress={() => onSelectSong(item)}
+            >
+              {item.imageUrl ? (
+                <Image source={{ uri: item.imageUrl }} style={musicIndexStyles.verticalListItemImage} />
+              ) : (
+                <View style={[musicIndexStyles.verticalListItemImage, musicIndexStyles.carouselImagePlaceholder]}>
+                  <Ionicons name="musical-notes-outline" size={30} color={colors.textSecondary} />
+                </View>
+              )}
+              <View style={musicIndexStyles.verticalListItemContent}>
+                <Text style={musicIndexStyles.verticalListItemTitle} numberOfLines={1}>{item.title}</Text>
+                <Text style={musicIndexStyles.verticalListItemSubtitle} numberOfLines={1}>{item.subtitle}</Text>
+              </View>
+              <Ionicons name="play-circle-outline" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={false} 
+          contentContainerStyle={musicIndexStyles.verticalListContent}
+        />
+      )}
+    </View>
+  );
+});
+
+// --- Curated Albums Section --- 
+interface CuratedAlbumsSectionProps {
+  albums: { name: string; imageUrl: string | null; songCount: number }[];
+  isSearchVisible: boolean;
+  searchQuery: string;
+  onSelectAlbum: (albumName: string) => void;
+  onSeeAll: () => void;
+}
+const CuratedAlbumsSection = React.memo(({ albums, isSearchVisible, searchQuery, onSelectAlbum, onSeeAll }: CuratedAlbumsSectionProps) => {
+  console.log('Rendering Curated Albums Section (memo)');
+  return (
+    <View style={musicIndexStyles.horizontalListContainer}>
+      <View style={musicIndexStyles.sectionHeader}>
+        <Text style={musicIndexStyles.sectionTitle}>
+          {isSearchVisible ? `Albums matching "${searchQuery}"` : "Curated Albums for You"}
+        </Text>
+        {!isSearchVisible && (
+          <TouchableOpacity onPress={onSeeAll}>
+            <Text style={musicIndexStyles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      {albums.length === 0 ? (
+        <View style={musicIndexStyles.emptyStateContainer}>
+          <Ionicons name={isSearchVisible ? "search-outline" : "albums-outline"} size={50} color={colors.textSecondary} />
+          <Text style={musicIndexStyles.emptyStateText}>{isSearchVisible ? "No matching albums" : "No albums available"}</Text>
+          {!isSearchVisible && <Text style={musicIndexStyles.emptyStateSubText}>Albums will appear here as you add music</Text>}
+        </View>
+      ) : (
+        <FlatList
+          data={albums}
+          renderItem={({ item }) => (
+            <TouchableOpacity 
+              style={musicIndexStyles.carouselItem} 
+              onPress={() => onSelectAlbum(item.name)}
+            >
+              {item.imageUrl ? (
+                <Image source={{ uri: item.imageUrl }} style={musicIndexStyles.carouselImage} />
+              ) : (
+                <View style={[musicIndexStyles.carouselImage, musicIndexStyles.carouselImagePlaceholder]}>
+                  <Ionicons name="albums-outline" size={40} color={colors.textSecondary} />
+                </View>
+              )}
+              <View style={musicIndexStyles.carouselTextContainer}>
+                <Text style={musicIndexStyles.carouselTitle} numberOfLines={1}>{item.name}</Text>
+                <Text style={musicIndexStyles.carouselSubtitle} numberOfLines={1}>{item.songCount} songs</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item.name}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={musicIndexStyles.horizontalFlatList} 
+        />
+      )}
+    </View>
+  );
+});
+
+// --- Quick Access Item --- 
+const QuickAccessItem = React.memo(({ iconName, text, onPress }: { iconName: keyof typeof Ionicons.glyphMap, text: string, onPress: () => void }) => (
+  <TouchableOpacity style={musicIndexStyles.quickAccessGridItem} onPress={onPress}>
+      <Ionicons name={iconName} size={24} style={musicIndexStyles.quickAccessIcon} />
+      <Text style={musicIndexStyles.quickAccessText}>{text}</Text>
+  </TouchableOpacity>
+));
+
+// --- NEW: Search Result Item ---
+const SearchResultItem = React.memo(({ item, onSelect }: { item: Song; onSelect: (song: Song) => void }) => {
+  // Display Artist in subtitle if available, otherwise fallback
+  const subtitleText = item.artist || 'Unknown Artist'; 
+
+  return (
+    // Make the whole item selectable
+    <TouchableOpacity style={musicIndexStyles.searchResultItem} onPress={() => onSelect(item)}>
+      {item.albumImage ? (
+        <Image source={{ uri: item.albumImage }} style={musicIndexStyles.searchResultImage} />
+      ) : (
+        <View style={[musicIndexStyles.searchResultImage, musicIndexStyles.carouselImagePlaceholder]}>
+          <Ionicons name="musical-notes-outline" size={30} color={colors.textSecondary} />
+        </View>
+      )}
+      <View style={musicIndexStyles.searchResultContent}>
+        <Text style={musicIndexStyles.searchResultTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={musicIndexStyles.searchResultSubtitle} numberOfLines={1}>{subtitleText}</Text> 
+      </View>
+      {/* Display icon without touchable for now */}
+       <Ionicons name="play-circle-outline" size={28} color={colors.primary} style={{ padding: 8 }} />
+    </TouchableOpacity>
+  );
+});
+
+// --- Main Music Component --- 
+const Music: React.FC = () => {
+  const router = useRouter(); 
+  const { playTrack } = usePlayerContext(); // Get context function
+
+  const [selectedSong, setSelectedSong] = useState<MusicFile | Song | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
+  
+  const [allSongs, setAllSongs] = useState<Song[]>([]);
+  const [isLoadingAllSongs, setIsLoadingAllSongs] = useState<boolean>(false);
+  const [allSongsError, setAllSongsError] = useState<string | null>(null);
+    
+  // Use banner data from state
+  const [bannerItems] = useState<BannerItem[]>([ // Keep banner data static or load dynamically if needed
+    {
+      id: 'banner1',
+      title: 'Gospel Worship',
+      imageUrl: 'https://res.cloudinary.com/locataire/image/upload/v1744401212/music%20banners/78a7a0ca6a_qq7za0.jpg',
+      description: 'Uplifting worship songs for your spirit'
+    },
+    { 
+      id: 'banner2',
+      title: 'Christian Hymns',
+      imageUrl: 'https://res.cloudinary.com/locataire/image/upload/v1744391025/music%20banners/1ef8fa78f1_uzsx8i.jpg',
+      description: 'Timeless hymns for reflection and praise'
+    },
+    { 
+      id: 'banner3',
+      title: 'Contemporary Christian',
+      imageUrl: 'https://res.cloudinary.com/locataire/image/upload/v1744391024/music%20banners/39a9776d88_cm2whb.jpg',
+      description: 'Modern Christian music for today\'s worship'
+    }
+  ]);
+
+  const [bannerItems2] = useState<BannerItem[]>([
+    {
+      id: 'banner01',
+      title: 'Gospel Worship',
+      imageUrl: 'https://res.cloudinary.com/locataire/image/upload/v1744391027/music%20banners/82458243df_z4grnv.jpg',
+      description: 'Uplifting worship songs for your spirit'
+    },
+    {
+      id: 'banner02',
+      title: 'Gospel Worship',
+      imageUrl: 'https://res.cloudinary.com/locataire/image/upload/v1744401212/music%20banners/63d9913bbe_ydeo03.jpg',
+      description: 'Uplifting worship songs for your spirit'
+    },
+    {
+      id: 'banner03',
+      title: 'Gospel Worship',
+      imageUrl: 'https://res.cloudinary.com/locataire/image/upload/v1744391025/music%20banners/1ef8fa78f1_uzsx8i.jpg',
+      description: 'Uplifting worship songs for your spirit'
+    }
+  ])
+
+    const [bannerItems3] = useState<BannerItem[]>([
+     {
+      id: 'banner04',
+      title: 'Gospel Worship',
+      imageUrl: 'https://res.cloudinary.com/locataire/image/upload/v1744402008/music%20banners/38e4e9e1bc_y5czfz.jpg',
+      description: 'Uplifting worship songs for your spirit'
+    },
+    {
+      id: 'banner05',
+      title: 'Gospel Worship',
+      imageUrl: 'https://res.cloudinary.com/locataire/image/upload/v1744402008/music%20banners/e6054baf7e_ljiv8a.jpg',
+      description: 'Uplifting worship songs for your spirit'
+    },
+    {
+      id: 'banner06',
+      title: 'Gospel Worship',
+      imageUrl: 'https://res.cloudinary.com/locataire/image/upload/v1744402008/music%20banners/c2d363f163_qtc6rc.jpg',
+      description: 'Uplifting worship songs for your spirit'
+    }
+    ])
+
+
+  const { favorites, isLoading: isLoadingFavorites } = useFavoritesContext(); 
+  const { recentlyPlayed, clearRecentTracks } = usePlayerContext();
+
+  // --- Global Search State ---
+  const [isSearchVisible, setIsSearchVisible] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedSearchQuery] = useDebounce(searchQuery, 500); // Increased debounce
+
+  // --- API Search Results State ---
+  const [searchResults, setSearchResults] = useState<Song[]>([]);
+  const [totalResults, setTotalResults] = useState<number>(0);
+  const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchLimit] = useState<number>(20); // Results per page
+  const [searchOffset, setSearchOffset] = useState<number>(0);
+
+  // --- API Base URL ---
+  // Ensure MUSICKIT_URI is correctly configured in utilities/tools or replace placeholder
+  const API_BASE_URL = MUSICKIT_URI || 'http://localhost:4004'; // Use imported or fallback
+
+  // --- Load Initial Data (for Home Screen Sections) ---
+  useEffect(() => {
+    const loadInitialData = async () => {
+      // Avoid loading if search is already active? Or maybe still needed?
+      // Let's keep it simple for now.
+      if (isSearchVisible) return; // Don't load home data if search is open
+
+      setIsLoadingAllSongs(true);
+      setAllSongsError(null);
+      try {
+        const musicCollection = await fetchAllSongs(100); // Fetch enough for home screen
+        setAllSongs(musicCollection.songs);
+      } catch (err) {
+        console.error('Error fetching initial music data:', err);
+        setAllSongsError('Failed to load music data.');
+      } finally {
+        setIsLoadingAllSongs(false);
+      }
+    };
+    loadInitialData();
+  }, [isSearchVisible]); // Reload home data if search is closed
+
+  // --- Derived Data for Home Screen (Not used when searching) ---
+   const displayLikedSongs = useMemo(() => {
+     if (isSearchVisible || isLoadingAllSongs || !allSongs) return []; // Guard clauses
+     const favoriteKeys = Array.from(favorites);
+      return allSongs
+        .filter(song => favoriteKeys.includes(getSongKey(song)))
+        .map((song): CarouselDisplayItem => ({
+          id: song.key || `${song.album}::${song.title}`,
+          title: song.title,
+          subtitle: song.album,
+          imageUrl: song.albumImage,
+        }));
+   }, [favorites, allSongs, isLoadingAllSongs, isSearchVisible]);
+
+  const displayAlbums = useMemo(() => {
+     if (isSearchVisible || isLoadingAllSongs || !allSongs) return []; // Guard clauses
+     const albumMap = new Map<string, { name: string; imageUrl: string | null; songCount: number }>();
+     allSongs.forEach(song => {
+        if (!albumMap.has(song.album)) {
+            albumMap.set(song.album, {
+                name: song.album,
+                imageUrl: song.albumImage,
+                songCount: 1
+            });
+        } else {
+            albumMap.get(song.album)!.songCount += 1;
+        }
+     });
+     const allCalculatedAlbums = Array.from(albumMap.values());
+     // Randomize for home display
+     const shuffled = [...allCalculatedAlbums];
+     for (let i = shuffled.length - 1; i > 0; i--) {
+       const j = Math.floor(Math.random() * (i + 1));
+       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+     }
+     return shuffled.slice(0, 5); // Show 5 random
+   }, [allSongs, isLoadingAllSongs, isSearchVisible]);
+
+  // --- API Search Function ---
+  const fetchSearchResults = useCallback(async (query: string, offset: number) => {
+    if (!query) {
+      setSearchResults([]);
+      setTotalResults(0);
+      setSearchError(null);
+      return;
+    }
+    console.log(`Fetching search results for: "${query}", offset: ${offset}`);
+    setIsSearchLoading(true);
+    setSearchError(null);
+    try {
+      // Ensure API_BASE_URL is correct
+      const apiUrl = `${API_BASE_URL}/api/music/search?q=${encodeURIComponent(query)}&limit=${searchLimit}&offset=${offset}`;
+      const response = await fetch(apiUrl);
+
+      // Log raw response for debugging
+      // const rawText = await response.text();
+      // console.log("Raw API response:", rawText);
+      // const data = JSON.parse(rawText);
+
+      if (!response.ok) {
+         const errorData = await response.json().catch(() => ({ message: 'Unknown API error' }));
+         console.error("Search API Error Data:", errorData);
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Search API Response Data:', data);
+      console.log('Raw search API songs array:', data.songs);
+
+      if (typeof data.totalSongs !== 'number' || !Array.isArray(data.songs)) {
+          console.error("Invalid API response structure:", data);
+          throw new Error("Received invalid data structure from search API.");
+      }
+
+      setSearchResults(offset === 0 ? data.songs : prev => [...prev, ...data.songs]); // Append for infinite scroll, replace for pagination
+      setTotalResults(data.totalSongs);
+
+    } catch (error: any) {
+      console.error("Error fetching search results:", error);
+      setSearchError(error.message || 'Failed to fetch search results.');
+      setSearchResults([]); // Clear results on error
+      setTotalResults(0);
+    } finally {
+      setIsSearchLoading(false);
+    }
+  }, [API_BASE_URL, searchLimit]); // Dependencies
+
+  // --- Effect to Trigger Search on Debounced Query Change ---
+  useEffect(() => {
+    if (isSearchVisible && debouncedSearchQuery) {
+      console.log("Debounced query changed, fetching new search:", debouncedSearchQuery);
+      setSearchOffset(0); // Reset to first page for new query
+      setSearchResults([]); // Clear previous results immediately for new query
+      fetchSearchResults(debouncedSearchQuery, 0);
+    } else if (!debouncedSearchQuery && isSearchVisible) {
+       // Clear results if query becomes empty
+       setSearchResults([]);
+       setTotalResults(0);
+       setSearchError(null);
+       setIsSearchLoading(false);
+       setSearchOffset(0);
+    }
+  }, [debouncedSearchQuery, isSearchVisible, fetchSearchResults]);
+
+  // --- Pagination Logic ---
+  const currentPage = useMemo(() => Math.floor(searchOffset / searchLimit) + 1, [searchOffset, searchLimit]);
+  const totalPages = useMemo(() => Math.ceil(totalResults / searchLimit), [totalResults, searchLimit]);
+
+  const handleNextPage = () => {
+    if (!isSearchLoading && currentPage < totalPages) {
+      const newOffset = searchOffset + searchLimit;
+      console.log("Fetching next page, new offset:", newOffset);
+      setSearchOffset(newOffset);
+      // We are replacing results page by page, not infinite scrolling
+      // setSearchResults([]); // Clear current results before fetching next page? No, fetchSearchResults will replace.
+      fetchSearchResults(debouncedSearchQuery, newOffset);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (!isSearchLoading && currentPage > 1) {
+      const newOffset = Math.max(0, searchOffset - searchLimit);
+      console.log("Fetching previous page, new offset:", newOffset);
+      setSearchOffset(newOffset);
+      // setSearchResults([]); // Clear current results? No.
+      fetchSearchResults(debouncedSearchQuery, newOffset);
+    }
+  };
+
+  // --- Callbacks for Child Components ---
+   const handleSelectSong = useCallback((song: MusicFile | Song, album: Album | null = null) => {
+        // Construct the Song object for the context
+        const songToPlay: Song = {
+            title: song.title,
+            url: 'url' in song ? song.url : '', // Get URL if present (ensure musicService provides this)
+            key: song.key,
+            album: 'album' in song ? song.album : album?.name || 'Unknown Album',
+            albumImage: 'albumImage' in song ? song.albumImage : album?.imageUrl || null, // Use optional chaining and fallback to null
+            artist: 'artist' in song ? song.artist : undefined, // Add artist if available
+            // size/lastModified are optional
+            size: 'size' in song ? song.size : undefined,
+            lastModified: 'lastModified' in song ? song.lastModified : undefined,
+        };
+
+        console.log(`Music Index: constructed songToPlay before calling playTrack:`, songToPlay);
+        console.log(`Music Index: Calling playTrack for ${songToPlay.title}`);
+        // Call playTrack from context - treat as single track playlist
+        if (playTrack) {
+             playTrack(songToPlay, [songToPlay], 0);
+        } else {
+            console.error("playTrack function is not available from context!");
+        }
+
+        // Remove the setting of local state that triggers the separate MusicPlayer instance
+        // setSelectedSong(song); 
+        // setSelectedAlbum(album); 
+
+   }, [playTrack, allSongs]); // Added playTrack dependency
+
+  const handleClosePlayer = useCallback(() => {
+    // This state is likely no longer used if we remove the MusicPlayer instance below
+    // setSelectedSong(null); 
+    // setSelectedAlbum(null);
+    console.log("handleClosePlayer called - likely redundant now");
+  }, []);
+
+  const handlePlayRecentlyPlayed = useCallback((item: Song) => {
+    console.log('Playing recently played item:', item.title);
+    // Assuming recentlyPlayed is always an array
+    const index = recentlyPlayed.findIndex(t => t.key === item.key);
+    playTrack(item, recentlyPlayed, index >= 0 ? index : 0);
+  }, [playTrack, recentlyPlayed]);
+
+  const handleClearRecentlyPlayed = useCallback(() => {
+    console.log('Clearing recently played tracks');
+    clearRecentTracks();
+  }, [clearRecentTracks]);
+
+  const handleSelectLikedSong = useCallback((item: CarouselDisplayItem) => {
+    console.log('Liked Song selected:', item.title);
+    // Find the original Song object from allSongs
+    const song = allSongs.find(s => s.key === item.id || `${s.album}::${s.title}` === item.id);
+    if (song) {
+      handleSelectSong(song); // Pass only the song
+    } else {
+        console.warn("Could not find liked song in allSongs list:", item.id);
+    }
+  }, [allSongs, handleSelectSong]); // Still needs allSongs to find the liked song
+
+  const handleSelectAlbum = useCallback((albumName: string) => {
+      console.log('Album selected:', albumName);
+      // Navigate to album details screen, passing the album name
+      // Ensure the route /music/albums/[albumName].tsx (or similar) exists
+      router.push(`/music/albums/${encodeURIComponent(albumName)}`);
+  }, [router]); // Add router to dependency array
+
+  // --- Navigation ---
+  const navigateToAlbums = useCallback(() => router.push('/music/albums'), [router]);
+  const navigateToSongs = useCallback(() => router.push('/music/songs'), [router]);
+  const navigateToArtists = useCallback(() => router.push('/music/artists'), [router]);
+  const navigateToFavorites = useCallback(() => router.push('/music/playlists'), [router]);
+
+  // --- Search Toggle ---
+  const toggleSearch = useCallback(() => {
+    setIsSearchVisible(prev => {
+      const becomingVisible = !prev;
+      if (!becomingVisible) {
+        // Reset search state thoroughly when hiding
+        setSearchQuery('');
+        // Debounced query will update automatically via useEffect when searchQuery clears
+        setSearchResults([]);
+        setTotalResults(0);
+        setSearchOffset(0);
+        setSearchError(null);
+        setIsSearchLoading(false);
+      } else {
+          // Optional: fetch empty initially?
+          // fetchSearchResults('', 0);
+      }
+      return becomingVisible;
+    });
+  }, [fetchSearchResults]); // Removed setDebouncedSearchQuery reference
+
+  // --- Main Return ---
+  console.log('Rendering Music component. Search Visible:', isSearchVisible);
+  return (
+    <SafeAreaView style={musicIndexStyles.container}>
+      {/* Header */}
+      <View style={musicIndexStyles.headerContainer}>
+          <Text style={musicIndexStyles.headerTitle}>Music</Text>
+          <View style={musicIndexStyles.headerIconsContainer}>
+              <TouchableOpacity onPress={toggleSearch} style={musicIndexStyles.headerIconTouchable}>
+                  <Ionicons name={isSearchVisible ? "close" : "search"} size={24} color={colors.icon} />
+              </TouchableOpacity>
+          </View>
+      </View>
+
+      {/* Global Search Input Area - Conditionally mounted might be better */}
+      {isSearchVisible && (
+           <View style={musicIndexStyles.searchBarContainer}>
+              {/* NEW: Apply field container style */}
+              <View style={musicIndexStyles.searchFieldContainer}>
+                  <Ionicons name="search" size={20} color={colors.textSecondary} style={musicIndexStyles.searchIcon} />
+                  <TextInput
+                      // ref removed
+                      style={musicIndexStyles.searchInput}
+                      placeholder="Search All Songs..."
+                      placeholderTextColor={colors.textSecondary}
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                      returnKeyType="search"
+                      onSubmitEditing={() => fetchSearchResults(searchQuery, 0)} // Trigger on keyboard submit
+                      onFocus={() => console.log("Search input focused")}
+                      onBlur={() => console.log("Search input blurred")}
+                  />
+                  {searchQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => setSearchQuery('')} style={musicIndexStyles.clearSearchButton}>
+                          <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                  )}
+              </View>
+          </View>
+      )}
+
+      {/* Main Content Area: Search Results or Home Screen */}
+      {isSearchVisible ? (
+        // --- Search Results View ---
+        <View key="search-view" style={musicIndexStyles.searchResultsContainer}>
+          {(() => { // Use IIFE for cleaner conditional logic
+            // 1. Initial Loading State (only when loading and no results yet)
+            if (isSearchLoading && searchResults.length === 0 && !searchError) {
+              return <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />;
+            }
+            // 2. Error State
+            if (searchError) {
+              return (
+                <View style={musicIndexStyles.emptySearchContainer}>
+                  <Ionicons name="cloud-offline-outline" size={50} color={colors.error} />
+                  <Text style={musicIndexStyles.errorText}>{searchError}</Text>
+                  {/* Optional: Add a retry button */}
+                </View>
+              );
+            }
+            // 3. Results Found
+            if (searchResults.length > 0) {
+              return (
+                // Wrap FlatList and Pagination in a single View
+                <View style={{ flex: 1 }}> 
+                  <FlatList
+                    style={{ flex: 1 }}
+                    data={searchResults}
+                    renderItem={({ item }) => <SearchResultItem item={item} onSelect={handleSelectSong} />}
+                    keyExtractor={(item) => item.key}
+                    contentContainerStyle={musicIndexStyles.searchResultsList}
+                    // Show loader at bottom only when loading *more* results
+                    ListFooterComponent={isSearchLoading && searchResults.length > 0 ? <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 20 }}/> : null}
+                    keyboardShouldPersistTaps="handled" // Allow tapping results while keyboard is up
+                  />
+                  {/* Pagination Controls - Only show if more than one page */}
+                  {totalPages > 1 && (
+                    <View style={musicIndexStyles.paginationContainer}>
+                      <TouchableOpacity
+                        onPress={handlePreviousPage}
+                        disabled={isSearchLoading || currentPage === 1}
+                        style={[musicIndexStyles.paginationButton, (isSearchLoading || currentPage === 1) && musicIndexStyles.paginationButtonDisabled]}
+                      >
+                        <Ionicons name="chevron-back" size={24} color={(isSearchLoading || currentPage === 1) ? colors.textDisabled : colors.primary} />
+                      </TouchableOpacity>
+                      <Text style={musicIndexStyles.paginationText}>Page {currentPage} of {totalPages}</Text>
+                      <TouchableOpacity
+                        onPress={handleNextPage}
+                        disabled={isSearchLoading || currentPage === totalPages}
+                        style={[musicIndexStyles.paginationButton, (isSearchLoading || currentPage === totalPages) && musicIndexStyles.paginationButtonDisabled]}
+                      >
+                        <Ionicons name="chevron-forward" size={24} color={(isSearchLoading || currentPage === totalPages) ? colors.textDisabled : colors.primary} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            }
+            // 4. No Results Found (after a search was attempted)
+            if (debouncedSearchQuery && !isSearchLoading) {
+               return (
+                 <View style={musicIndexStyles.emptySearchContainer}>
+                   <Ionicons name="search-outline" size={50} color={colors.textSecondary} />
+                   <Text style={musicIndexStyles.emptySearchText}>No results found for "{debouncedSearchQuery}"</Text>
+                 </View>
+               );
+            }
+            // 5. Initial State (before searching or after clearing)
+            // This condition should catch the state where search is visible but no query is entered yet
+            if (!debouncedSearchQuery && !isSearchLoading) {
+               return (
+                 <View style={musicIndexStyles.emptySearchContainer}>
+                   <Ionicons name="search" size={50} color={colors.textSecondary} />
+                   <Text style={musicIndexStyles.emptySearchText}>Search for songs, albums, artists...</Text>
+                 </View>
+               );
+            }
+            // Fallback - should ideally not be reached, but good practice
+            return null;
+          })()}
+        </View>
+      ) : (
+        // --- Default Home View ---
+        <ScrollView
+          key="home-view"
+          style={musicIndexStyles.scrollView}
+          contentContainerStyle={musicIndexStyles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ScrollView Content for Home */}
+          <>
+            <View style={musicIndexStyles.quickAccessGridContainer}>
+                <QuickAccessItem iconName="albums-outline" text="Albums" onPress={navigateToAlbums} />
+                <QuickAccessItem iconName="musical-notes-outline" text="Songs" onPress={navigateToSongs} />
+                <QuickAccessItem iconName="person-outline" text="Artists" onPress={navigateToArtists} />
+                <QuickAccessItem iconName="heart" text="Favorites" onPress={navigateToFavorites} />
+            </View>
+            <BannerSlider items={bannerItems} />
+            {(isLoadingAllSongs || isLoadingFavorites) ? (
+              <View style={[layoutStyles.centered, { paddingVertical: 30 }]}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : allSongsError ? (
+              <View style={[layoutStyles.centered, { padding: 20 }]}>
+                <Text style={{ color: colors.error }}>{allSongsError}</Text>
+              </View>
+            ) : (
+              <>
+                <RecentlyPlayedSection
+                  recentlyPlayed={recentlyPlayed}
+                  onClear={handleClearRecentlyPlayed}
+                  onPlay={handlePlayRecentlyPlayed}
+                />
+                <BannerSlider items={bannerItems2} />
+                <CuratedAlbumsSection
+                  albums={displayAlbums}
+                  isSearchVisible={false} // Explicitly false
+                  searchQuery={''}
+                  onSelectAlbum={handleSelectAlbum}
+                  onSeeAll={navigateToAlbums}
+                />
+                <BannerSlider items={bannerItems3} />
+                <LikedSongsList
+                  songs={displayLikedSongs}
+                  isSearchVisible={false} // Explicitly false
+                  searchQuery={''}
+                  onSelectSong={handleSelectLikedSong}
+                  onSeeAll={navigateToFavorites}
+                />
+              </>
+            )}
+          </>
+        </ScrollView>
+      )}
+    </SafeAreaView>
+  );
+};
+
+export default Music;

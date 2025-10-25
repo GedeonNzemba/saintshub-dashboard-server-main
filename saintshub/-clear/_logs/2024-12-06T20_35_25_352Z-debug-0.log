@@ -1,0 +1,20 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.7.0
+2 info using node@v20.15.0
+3 silly config:load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config:load:file:C:\Users\nzemb\OneDrive\Documents\Web Development\Projects\saintshub-v3\saintshub\.npmrc
+5 silly config:load:file:C:\Users\nzemb\.npmrc
+6 silly config:load:file:C:\Users\nzemb\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm start
+8 verbose argv "start" "--cache" "-clear"
+9 verbose logfile logs-max:10 dir:C:\Users\nzemb\OneDrive\Documents\Web Development\Projects\saintshub-v3\saintshub\-clear\_logs\2024-12-06T20_35_25_352Z-
+10 verbose logfile C:\Users\nzemb\OneDrive\Documents\Web Development\Projects\saintshub-v3\saintshub\-clear\_logs\2024-12-06T20_35_25_352Z-debug-0.log
+11 silly logfile done cleaning log files
+12 http fetch GET 200 https://registry.npmjs.org/npm 1561ms
+13 notice
+13 notice New [33mminor[39m version of npm available! [33m10.7.0[39m -> [34m10.9.2[39m
+13 notice Changelog: [34mhttps://github.com/npm/cli/releases/tag/v10.9.2[39m
+13 notice To update run: [4mnpm install -g npm@10.9.2[24m
+13 notice  { force: true, [Symbol(proc-log.meta)]: true }
+14 verbose exit 0
+15 info ok

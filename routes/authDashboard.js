@@ -42,5 +42,6 @@ router.patch("/churches/:id/:field", (req, res) => __awaiter(void 0, void 0, voi
         res.status(500).json({ error: "Internal Server Error" });
     }
 }));
+router.get("/public/churches", dashboardController_1.default.getAllChurch);
 router.get("/churches", authMiddleware_1.default, dashboardController_1.default.getAllChurch);
 exports.default = router;

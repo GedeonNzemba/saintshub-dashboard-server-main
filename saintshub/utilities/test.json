@@ -1,0 +1,21 @@
+This is a YouTube API search response. The response contains a list of videos that match the search query. The list is paginated, with a maximum of 1 video per page in this case.
+
+The video data is contained within the "items" array. Each video is represented by an object with the following properties:
+
+- "kind": The type of YouTube resource, in this case a video.
+- "etag": A unique identifier for the video.
+- "id": An object containing the video ID.
+- "snippet": An object containing metadata about the video.
+
+The "snippet" object contains the following properties:
+
+- "publishedAt": The date and time the video was published.
+- "channelId": The ID of the YouTube channel that uploaded the video.
+- "title": The title of the video.
+- "description": The description of the video.
+- "thumbnails": An object containing URLs for different sizes of the video thumbnail.
+- "channelTitle": The title of the YouTube channel that uploaded the video.
+- "liveBroadcastContent": A string indicating whether the video is a live broadcast or not. In this case, it is "none", indicating that the video is not a live broadcast.
+- "publishTime": The date and time the video was published.
+
+The videos are not live videos, as indicated by the "liveBroadcastContent" property being set to "none".
