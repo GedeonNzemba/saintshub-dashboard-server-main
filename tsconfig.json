@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
-    "strict": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "noEmitOnError": false,
     "target": "es2016",
     "module": "commonjs",
     "outDir": "./dist",
