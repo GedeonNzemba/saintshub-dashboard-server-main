@@ -1,0 +1,20 @@
+# Nixpacks configuration for Railway deployment
+# https://nixpacks.com/docs/configuration/file
+
+[phases.setup]
+# nodejs_20 provides both node and npm (needed because bun.lock confuses autodetect).
+# python3 is required for bcrypt native bindings compilation.
+nixPkgs = ["nodejs_20", "python3"]
+
+[phases.install]
+# Install all deps (including devDependencies for TypeScript compilation).
+# PUPPETEER_SKIP_CHROMIUM_DOWNLOAD prevents the massive Chromium binary download —
+# puppeteer is imported but never actually used in production routes.
+cmds = ["PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true PUPPETEER_SKIP_DOWNLOAD=true npm ci"]
+
+[phases.build]
+# Compile TypeScript → dist/
+cmds = ["npm run build"]
+
+[start]
+cmd = "node dist/index.js"

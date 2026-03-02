@@ -1,0 +1,225 @@
+// src/routes/authRoutes.ts
+import express, { Request, Response } from "express";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import User, { UserDocument } from "../models/User";
+import authMiddleware from "../middlewares/authMiddleware";
+import userController from "../controllers/userController";
+import { v4 as uuidv4 } from 'uuid';
+import fileControllers from "../controllers/fileControllers";
+import formidable from "formidable";
+import path from "path";
+import fileParser from "../middlewares/fileParser";
+import * as emailService from '../services/emailService';
+import { authRateLimiter, uploadRateLimiter } from "../middlewares/rateLimiter";
+import { validateSignup, validateSignin } from "../middlewares/validators";
+
+
+interface MulterRequest extends Request {
+  file: any;
+}
+
+const router = express.Router();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+
+// Input validation helper
+const isValidLanguage = (lang: any): lang is 'en' | 'fr' => ['en', 'fr'].includes(lang);
+const isValidRole = (role: any): role is 'pastor' | 'it' | 'user' => ['pastor', 'it', 'user'].includes(role);
+
+// router.post("/create-note", (req, res) => {
+//   res.send("<h1>Welcome to file upload</h1>");
+// });
+
+// ******************************************** FILE UPLOADER ************************************************
+
+// DEPRECATED: Legacy local file upload — kept for backward compatibility
+// All new uploads should use POST /api/media/upload (R2)
+router.post("/upload-file", uploadRateLimiter, async (req, res) => {
+  const form = formidable({
+    uploadDir: path.join(__dirname, "public"),
+    filename(name, ext, part) {
+      const uniqueFileName = Date.now() + "_" + (part.originalFilename || name + ".jpg");
+      return uniqueFileName;
+    },
+  });
+
+  await form.parse(req);
+  res.json({ ok: true });
+});
+
+// DEPRECATED: Old Cloudinary upload endpoint — replaced by POST /api/media/upload (R2)
+// Kept temporarily for any legacy clients still hitting this endpoint.
+// Redirects to a deprecation notice.
+router.post("/upload-file-to-cloud", uploadRateLimiter, fileParser, async (req, res) => {
+  return res.status(410).json({
+    message: "This endpoint has been deprecated. Please use POST /api/media/upload instead.",
+    newEndpoint: "/api/media/upload",
+  });
+});
+
+// ******************************************** FILE UPLOADER ENDS ************************************************
+
+// SIGN UP
+// SECURITY: Rate limited to 5 requests per 15 minutes to prevent account spam
+// VALIDATION: All inputs validated and sanitized
+router.post("/signup", authRateLimiter, validateSignup, async (req: Request, res: Response) => {
+  try {
+    const {
+        name,
+        surname,
+        email,
+        password,
+        confirmPassword,
+        avatar,
+        language,
+        role,
+        selectedChurchId,
+        otherChurchName
+    } = req.body;
+
+    if (!name || !surname || !email || !password || !confirmPassword || !avatar || !language || !role) {
+      return res.status(400).json({ message: "Please fill in all required fields." });
+    }
+
+    if (!isValidLanguage(language)) {
+        return res.status(400).json({ message: "Invalid language selected." });
+    }
+    if (!isValidRole(role)) {
+        return res.status(400).json({ message: "Invalid role selected." });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match." });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ message: "User already exists." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const isAdminCandidate = role === 'pastor' || role === 'it';
+    const churchSelection = selectedChurchId || otherChurchName;
+
+    const newUser: UserDocument = new User({
+      name,
+      surname,
+      email,
+      password: hashedPassword,
+      admin: false,
+      avatar: {
+        public_id: uuidv4(),
+        url: avatar,
+      },
+      language,
+      isAdminCandidate,
+      churchSelection,
+    });
+
+    await newUser.save();
+
+    // --- Post-Save Actions (Modern Emails) ---
+    // Send modern welcome email (asynchronously)
+    emailService.sendModernWelcomeEmail(newUser.email, newUser.name).catch((err: unknown) => {
+        console.error(`Failed to send welcome email to ${newUser.email}`, err);
+    });
+
+    // Send admin request pending email if user selected Pastor or IT role
+    if (isAdminCandidate) {
+      const roleMapping: { [key: string]: 'Pastor' | 'IT' } = {
+        'pastor': 'Pastor',
+        'it': 'IT'
+      };
+      const userRole = roleMapping[role] || 'Pastor';
+      
+      emailService.sendAdminRequestPendingEmail(newUser.email, newUser.name, userRole).catch((err: unknown) => {
+          console.error(`Failed to send admin request email to ${newUser.email}`, err);
+      });
+    }
+
+    const token = jwt.sign({ userId: newUser._id }, JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    const userResponse = {
+        _id: newUser._id,
+        name: newUser.name,
+        surname: newUser.surname,
+        email: newUser.email,
+        avatar: newUser.avatar,
+        language: newUser.language,
+        admin: newUser.admin,
+        isAdminCandidate: newUser.isAdminCandidate,
+    };
+
+    res.status(201).json({ token, user: userResponse });
+
+  } catch (error) {
+    console.error("Signup Error:", error);
+    res.status(500).json({ message: "An unexpected error occurred during signup." });
+  }
+});
+
+// SIGN IN
+// SECURITY: Rate limited to 5 requests per 15 minutes to prevent brute force attacks
+// VALIDATION: Email and password validated
+router.post("/signin", authRateLimiter, validateSignin, async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({ message: "Please fill in all fields." });
+    }
+
+    // Find the user by email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({ message: "Invalid Email credentials." });
+    }
+
+    // Compare passwords
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid Password credentials." });
+    } else {
+      console.log("USER: ", user);
+    }
+
+    // Create and sign a JWT token
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+      expiresIn: "5h",
+    });
+
+    // Set the JWT token as a cookie
+    res.cookie("token", token, { httpOnly: true });
+
+    res.status(200).json({ token, user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error." });
+  }
+});
+
+// SIGN OUT
+// Note: This endpoint also invalidates the token by adding it to the blacklist
+router.post("/signout", authMiddleware, userController.logoutUser);
+
+router.get("/user", authMiddleware, userController.getUser);
+router.get('/user/logout', authMiddleware, userController.logoutUser); // New route for logout
+
+router.put("/user/update-user", authMiddleware, userController.updateUser);
+router.put("/user/update-avatar", authMiddleware, userController.updateUserImage);
+router.put("/user/update-password", authMiddleware, userController.updatePassword);
+
+// Delete account - requires password verification
+router.delete("/user/delete-account", authMiddleware, userController.deleteUserAccount);
+
+
+
+router.get("/documents", authMiddleware, fileControllers.getDocuments);
+
+export default router;

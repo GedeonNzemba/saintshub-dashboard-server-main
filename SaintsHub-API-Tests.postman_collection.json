@@ -1,0 +1,835 @@
+{
+	"info": {
+		"_postman_id": "saintshub-api-tests",
+		"name": "SaintsHub API - Production Features Testing",
+		"description": "Complete test suite for all 8 production-ready features:\n1. Redis Token Blacklist\n2. Rate Limiting\n3. Input Validation\n4. Error Handling\n5. Winston Logging\n6. Database Optimization\n7. Response Caching\n8. Health Check",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "0. Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Health status is ok\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(\"ok\");",
+									"});",
+									"",
+									"pm.test(\"Database is connected\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.services.database.connected).to.eql(true);",
+									"});",
+									"",
+									"pm.test(\"Redis is connected\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.services.redis.connected).to.eql(true);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						},
+						"description": "Tests Feature #8: Health Check Endpoint\n\nVerifies:\n- Server is running\n- Database connection\n- Redis connection\n- Cache statistics\n- Memory usage\n- System uptime"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Sign Up - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Returns token\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.token).to.exist;",
+									"    pm.environment.set(\"auth_token\", jsonData.token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullname\": \"Test User\",\n  \"email\": \"test{{$timestamp}}@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"admin\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signup",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signup"]
+						},
+						"description": "Tests Feature #3: Input Validation\n\nValidates:\n- Email format\n- Password strength\n- Required fields\n- Data types"
+					},
+					"response": []
+				},
+				{
+					"name": "Sign Up - Invalid Email (Validation Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Returns validation error\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.errors).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullname\": \"Test User\",\n  \"email\": \"invalid-email\",\n  \"password\": \"SecurePass123!\",\n  \"admin\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signup",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signup"]
+						},
+						"description": "Tests Feature #3: Input Validation\n\nExpects validation error for invalid email format"
+					},
+					"response": []
+				},
+				{
+					"name": "Sign Up - Weak Password (Validation Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Returns validation error\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.errors).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullname\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"123\",\n  \"admin\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signup",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signup"]
+						},
+						"description": "Tests Feature #3: Input Validation\n\nExpects validation error for weak password"
+					},
+					"response": []
+				},
+				{
+					"name": "Sign In - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Returns token\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.token).to.exist;",
+									"    pm.environment.set(\"auth_token\", jsonData.token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signin"]
+						},
+						"description": "Sign in with valid credentials.\n\n**Before running:** Update the request body with valid test credentials"
+					},
+					"response": []
+				},
+				{
+					"name": "Sign Out (Token Blacklist Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Logout successful\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include(\"logged out\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/signout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signout"]
+						},
+						"description": "Tests Feature #1: Redis Token Blacklist\n\nWhen you logout:\n1. Token is added to Redis blacklist\n2. Subsequent requests with this token should fail\n\n**Test Flow:**\n1. Sign in (get token)\n2. Sign out (blacklist token)\n3. Try using blacklisted token (should fail)"
+					},
+					"response": []
+				},
+				{
+					"name": "Use Blacklisted Token (Should Fail)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 401\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test(\"Token is blacklisted\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include(\"blacklisted\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches"]
+						},
+						"description": "Tests Feature #1: Redis Token Blacklist\n\nThis request should FAIL because the token was blacklisted during logout.\n\n**Run AFTER signing out**"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Rate Limiting Tests",
+			"item": [
+				{
+					"name": "Sign In Attempt 1",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@test.com\",\n  \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signin"]
+						},
+						"description": "Tests Feature #2: Rate Limiting\n\nAuth routes are limited to 5 requests per 15 minutes.\n\n**Test:** Run this request 6 times rapidly. The 6th request should return 429 (Too Many Requests)"
+					},
+					"response": []
+				},
+				{
+					"name": "Sign In Attempt 2",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@test.com\",\n  \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signin"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sign In Attempt 3",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@test.com\",\n  \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signin"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sign In Attempt 4",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@test.com\",\n  \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signin"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sign In Attempt 5",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@test.com\",\n  \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signin"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sign In Attempt 6 (Should Be Rate Limited)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 429 - Rate Limited\", function () {",
+									"    pm.response.to.have.status(429);",
+									"});",
+									"",
+									"pm.test(\"Returns rate limit message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include(\"Too many requests\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@test.com\",\n  \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/signin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "signin"]
+						},
+						"description": "Tests Feature #2: Rate Limiting\n\nThis 6th attempt should return:\n- Status: 429 Too Many Requests\n- Message: \"Too many requests, please try again later\""
+					},
+					"response": []
+				}
+			],
+			"description": "Tests Feature #2: Rate Limiting\n\n**How to test:**\n1. Use the Collection Runner\n2. Select this folder\n3. Run all 6 requests in sequence\n4. The 6th request should fail with 429\n\n**Rate Limits:**\n- Auth routes: 5/15min\n- Upload routes: 20/15min\n- General routes: 100/15min"
+		},
+		{
+			"name": "3. Church Management (CRUD)",
+			"item": [
+				{
+					"name": "Get All Churches (Cache Test 1)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Returns array of churches\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});",
+									"",
+									"// Check if response was cached",
+									"pm.test(\"First request - not cached\", function () {",
+									"    var cacheHeader = pm.response.headers.get('X-Cache');",
+									"    console.log('Cache status:', cacheHeader || 'No cache header');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches"]
+						},
+						"description": "Tests Feature #7: Response Caching (Part 1)\n\n**First Request:**\n- Fetches from database\n- Response is cached for 5 minutes\n\n**Run this twice to test caching**"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Churches (Cache Test 2 - Should Be Cached)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is faster (cached)\", function () {",
+									"    var responseTime = pm.response.responseTime;",
+									"    console.log('Response time:', responseTime, 'ms');",
+									"    // Cached responses should be faster",
+									"    pm.expect(responseTime).to.be.below(100);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches"]
+						},
+						"description": "Tests Feature #7: Response Caching (Part 2)\n\n**Second Request:**\n- Should return cached data\n- Much faster response time\n- No database query\n\n**Run IMMEDIATELY after the first request**"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Church",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Returns created church\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData._id).to.exist;",
+									"    pm.environment.set(\"church_id\", jsonData._id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Church {{$timestamp}}\",\n  \"location\": \"Test City\",\n  \"description\": \"A test church for API testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/create-church",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "create-church"]
+						},
+						"description": "Tests Feature #3: Input Validation\nTests Feature #7: Cache invalidation\n\nCreating a church should:\n1. Validate input\n2. Save to database\n3. Invalidate church list cache"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Church",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Church updated successfully\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Test Church\",\n  \"location\": \"Updated City\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}"]
+						},
+						"description": "Tests Feature #3: Input Validation\nTests Feature #7: Cache invalidation\n\nUpdating a church should invalidate the cache"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Church",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Church deleted successfully\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include(\"deleted\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/{{church_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "{{church_id}}"]
+						},
+						"description": "Tests Feature #7: Cache invalidation\n\nDeleting a church should invalidate the cache"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Error Handling Tests",
+			"item": [
+				{
+					"name": "404 - Route Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Returns error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.exist;",
+									"    pm.expect(jsonData.message).to.include(\"not found\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/non-existent-route",
+							"host": ["{{base_url}}"],
+							"path": ["api", "non-existent-route"]
+						},
+						"description": "Tests Feature #4: Error Handling\n\nShould return consistent 404 error format"
+					},
+					"response": []
+				},
+				{
+					"name": "401 - Unauthorized (No Token)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 401\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test(\"Returns unauthorized error\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include(\"authorized\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches"]
+						},
+						"description": "Tests Feature #4: Error Handling\n\nShould return 401 when accessing protected route without token"
+					},
+					"response": []
+				},
+				{
+					"name": "400 - Invalid Church ID Format",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 or 404\", function () {",
+									"    pm.expect([400, 404]).to.include(pm.response.code);",
+									"});",
+									"",
+									"pm.test(\"Returns error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message || jsonData.error).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/churches/invalid-id-format",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "churches", "invalid-id-format"]
+						},
+						"description": "Tests Feature #4: Error Handling\n\nShould return error for invalid MongoDB ID format"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"console.log('Running request:', pm.info.requestName);"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script",
+					"console.log('Response time:', pm.response.responseTime, 'ms');"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3003",
+			"type": "string"
+		},
+		{
+			"key": "test_email",
+			"value": "your-test-email@example.com",
+			"type": "string"
+		},
+		{
+			"key": "test_password",
+			"value": "your-test-password",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "church_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

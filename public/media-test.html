@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaintsHub Media Upload Tester</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --green: #10b981;
+      --red: #ef4444;
+      --orange: #f59e0b;
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --card: #334155;
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+      --border: #475569;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    h2 { font-size: 18px; color: var(--primary); margin-bottom: 12px; }
+    .subtitle { color: var(--text-dim); margin-bottom: 24px; font-size: 14px; }
+
+    /* Layout */
+    .container { max-width: 900px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    /* Inputs */
+    label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--primary); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn-green { background: var(--green); color: white; }
+    .btn-red { background: var(--red); color: white; }
+    .btn-orange { background: var(--orange); color: #1e293b; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* Status badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 50px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-ok { background: #064e3b; color: #6ee7b7; }
+    .badge-err { background: #7f1d1d; color: #fca5a5; }
+    .badge-warn { background: #78350f; color: #fcd34d; }
+    .badge-info { background: #1e3a5f; color: #93c5fd; }
+
+    /* Drop zone */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      transition: all 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .dropzone.dragover { border-color: var(--primary); background: rgba(99, 102, 241, 0.1); }
+    .dropzone input[type="file"] {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      opacity: 0; cursor: pointer;
+    }
+    .dropzone-icon { font-size: 40px; margin-bottom: 8px; }
+    .dropzone-text { color: var(--text-dim); font-size: 14px; }
+
+    /* Progress */
+    .progress-bar {
+      height: 6px;
+      background: var(--card);
+      border-radius: 3px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+
+    /* Log */
+    #log {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      padding: 16px;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .log-info { color: #93c5fd; }
+    .log-ok { color: #6ee7b7; }
+    .log-err { color: #fca5a5; }
+    .log-warn { color: #fcd34d; }
+    .log-time { color: #64748b; }
+
+    /* File list */
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--card);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .file-preview {
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .file-info { flex: 1; min-width: 0; }
+    .file-name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-meta { font-size: 11px; color: var(--text-dim); }
+    .file-url {
+      font-size: 11px;
+      color: var(--primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .file-url:hover { text-decoration: underline; }
+
+    /* Divider */
+    hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Quick actions */
+    .quick-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .chip {
+      padding: 4px 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      font-size: 11px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chip:hover { border-color: var(--primary); color: var(--primary); }
+    .chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 SaintsHub Media Upload Tester</h1>
+    <p class="subtitle">Test your Cloudflare R2 media service — upload, delete, and verify files.</p>
+
+    <!-- Step 1: Auth -->
+    <div class="card" id="auth-card">
+      <h2>1. Authentication</h2>
+      <div id="auth-status"></div>
+      <div class="grid">
+        <div>
+          <label>Email</label>
+          <input type="email" id="auth-email" placeholder="your@email.com">
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" id="auth-password" placeholder="Password">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+        <button class="btn btn-orange" onclick="useManualToken()">Paste Token Instead</button>
+      </div>
+      <div id="manual-token-area" class="hidden" style="margin-top:12px">
+        <label>JWT Token</label>
+        <input type="text" id="manual-token" placeholder="eyJhbGci...">
+        <button class="btn btn-primary btn-sm" onclick="setManualToken()">Set Token</button>
+      </div>
+    </div>
+
+    <!-- Step 2: R2 Health -->
+    <div class="card">
+      <h2>2. R2 Connection</h2>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="checkR2Health()">Check R2 Health</button>
+        <button class="btn btn-green" onclick="checkStorage()" id="btn-storage" disabled>Check Storage</button>
+      </div>
+      <div id="r2-status" style="margin-top:12px"></div>
+    </div>
+
+    <!-- Step 3: Upload -->
+    <div class="card" id="upload-card">
+      <h2>3. Upload Files</h2>
+
+      <div class="grid">
+        <div>
+          <label>Category</label>
+          <select id="upload-category">
+            <option value="general">General (catch-all)</option>
+            <optgroup label="Users">
+              <option value="users/avatars">User Avatar</option>
+              <option value="users/covers">User Cover</option>
+            </optgroup>
+            <optgroup label="Churches">
+              <option value="churches/images">Church Image</option>
+              <option value="churches/banners">Church Banner</option>
+              <option value="churches/gallery">Church Gallery</option>
+              <option value="churches/songs">Church Song</option>
+              <option value="churches/sermons">Church Sermon</option>
+              <option value="churches/documents">Church Document</option>
+            </optgroup>
+            <optgroup label="Future">
+              <option value="posts/media">Post Media</option>
+              <option value="status/media">Status Media</option>
+            </optgroup>
+          </select>
+        </div>
+        <div>
+          <label>Scope (optional — defaults to your user ID)</label>
+          <input type="text" id="upload-scope" placeholder="userId or churchId">
+        </div>
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="file-input" multiple>
+        <div class="dropzone-icon">📁</div>
+        <div class="dropzone-text">
+          Drag &amp; drop files here, or <strong>click to browse</strong><br>
+          <small>Images (10MB), Audio (50MB), Video (500MB), Documents (20MB)</small>
+        </div>
+      </div>
+
+      <div id="upload-progress" class="hidden" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span id="progress-text">Uploading...</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      </div>
+
+      <div class="quick-actions" style="margin-top:8px">
+        <span style="font-size:11px;color:var(--text-dim);margin-right:4px">Quick test:</span>
+        <button class="chip" onclick="createTestFile('image')">🖼 Test Image</button>
+        <button class="chip" onclick="createTestFile('document')">📄 Test PDF</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Results -->
+    <div class="card">
+      <h2>4. Uploaded Files</h2>
+      <div id="file-list">
+        <p style="color:var(--text-dim);font-size:13px">No files uploaded yet.</p>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 style="margin-bottom:0">Activity Log</h2>
+        <button class="btn btn-sm btn-red" onclick="clearLog()">Clear</button>
+      </div>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <script>
+    // ─── State ─────────────────────────────────────────────────────────────────
+    const BASE = window.location.origin;
+    let token = '';
+    const uploadedFiles = [];
+
+    // ─── Log ───────────────────────────────────────────────────────────────────
+    const logEl = document.getElementById('log');
+
+    function log(msg, type = 'info') {
+      const time = new Date().toLocaleTimeString();
+      const cls = type === 'ok' ? 'log-ok' : type === 'err' ? 'log-err' : type === 'warn' ? 'log-warn' : 'log-info';
+      logEl.innerHTML += `<span class="log-time">[${time}]</span> <span class="${cls}">${escapeHtml(msg)}</span>\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function clearLog() { logEl.innerHTML = ''; }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ─── Auth ──────────────────────────────────────────────────────────────────
+    async function doLogin() {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass = document.getElementById('auth-password').value;
+      if (!email || !pass) return log('Enter email and password', 'warn');
+
+      log(`Signing in as ${email}...`);
+
+      try {
+        const res = await fetch(`${BASE}/api/signin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: pass }),
+        });
+        const data = await res.json();
+
+        if (data.token) {
+          token = data.token;
+          log(`Authenticated! Token: ${token.slice(0, 30)}...`, 'ok');
+          updateAuthUI(email, data.user);
+        } else {
+          log(`Login failed: ${data.message || JSON.stringify(data)}`, 'err');
+        }
+      } catch (err) {
+        log(`Login error: ${err.message}`, 'err');
+      }
+    }
+
+    function useManualToken() {
+      document.getElementById('manual-token-area').classList.toggle('hidden');
+    }
+
+    function setManualToken() {
+      const t = document.getElementById('manual-token').value.trim();
+      if (!t) return log('Paste a JWT token', 'warn');
+      token = t;
+      log(`Manual token set: ${token.slice(0, 30)}...`, 'ok');
+      updateAuthUI('Manual token user');
+    }
+
+    function updateAuthUI(email, user) {
+      document.getElementById('auth-status').innerHTML =
+        `<span class="badge badge-ok">✓ Authenticated</span> &nbsp;` +
+        `<span style="font-size:13px;color:var(--text-dim)">${escapeHtml(email)}${user?.name ? ` (${user.name})` : ''}</span>`;
+      document.getElementById('btn-storage').disabled = false;
+    }
+
+    // ─── R2 Health ─────────────────────────────────────────────────────────────
+    async function checkR2Health() {
+      log('Checking R2 connection...');
+      const el = document.getElementById('r2-status');
+
+      try {
+        const res = await fetch(`${BASE}/api/media/health`);
+        const data = await res.json();
+
+        if (data.status === 'ok') {
+          el.innerHTML = `<span class="badge badge-ok">Connected</span> &nbsp;` +
+            `<span style="font-size:13px;color:var(--text-dim)">Bucket: ${data.bucket} | Latency: ${data.latencyMs}ms</span>`;
+          log(`R2 connected — bucket: ${data.bucket}, latency: ${data.latencyMs}ms`, 'ok');
+        } else {
+          el.innerHTML = `<span class="badge badge-err">Disconnected</span> &nbsp;` +
+            `<span style="font-size:13px;color:var(--text-dim)">${data.error}</span>`;
+          log(`R2 error: ${data.error}`, 'err');
+        }
+      } catch (err) {
+        el.innerHTML = `<span class="badge badge-err">Error</span> <span style="font-size:12px">${err.message}</span>`;
+        log(`R2 health check failed: ${err.message}`, 'err');
+      }
+    }
+
+    async function checkStorage() {
+      if (!token) return log('Sign in first', 'warn');
+      log('Fetching storage stats...');
+
+      try {
+        const res = await fetch(`${BASE}/api/media/storage`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await res.json();
+
+        const el = document.getElementById('r2-status');
+        el.innerHTML += `<br><span class="badge badge-info">Storage</span> &nbsp;` +
+          `<span style="font-size:13px;color:var(--text-dim)">` +
+          `Used: ${data.usedMB}MB / ${data.limitMB}MB (${data.percentUsed}%) | Remaining: ${data.remainingMB}MB</span>`;
+        log(`Storage: ${data.usedMB}MB used of ${data.limitMB}MB (${data.percentUsed}%)`, 'ok');
+      } catch (err) {
+        log(`Storage check failed: ${err.message}`, 'err');
+      }
+    }
+
+    // ─── File Upload ───────────────────────────────────────────────────────────
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    async function handleFiles(fileList) {
+      if (!token) return log('Sign in first before uploading', 'warn');
+      if (!fileList.length) return;
+
+      const category = document.getElementById('upload-category').value;
+      const scope = document.getElementById('upload-scope').value.trim();
+
+      log(`Uploading ${fileList.length} file(s) | Category: ${category}${scope ? ' | Scope: ' + scope : ''}...`);
+
+      const progressEl = document.getElementById('upload-progress');
+      const fillEl = document.getElementById('progress-fill');
+      const textEl = document.getElementById('progress-text');
+      const pctEl = document.getElementById('progress-pct');
+
+      progressEl.classList.remove('hidden');
+      let done = 0;
+
+      for (const file of fileList) {
+        textEl.textContent = `Uploading ${file.name} (${formatSize(file.size)})...`;
+        log(`  → ${file.name} (${formatSize(file.size)}, ${file.type})`);
+
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('category', category);
+          if (scope) formData.append('scope', scope);
+
+          const startTime = Date.now();
+
+          const res = await fetch(`${BASE}/api/media/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData,
+          });
+
+          const data = await res.json();
+          const elapsed = Date.now() - startTime;
+
+          if (res.ok) {
+            log(`  ✓ ${file.name} → ${data.url} (${formatSize(data.size)}, ${elapsed}ms)`, 'ok');
+            uploadedFiles.push({
+              name: file.name,
+              url: data.url,
+              key: data.key,
+              size: data.size,
+              mediaType: data.mediaType,
+              type: file.type,
+            });
+          } else {
+            log(`  ✗ ${file.name}: ${data.message}`, 'err');
+          }
+        } catch (err) {
+          log(`  ✗ ${file.name}: ${err.message}`, 'err');
+        }
+
+        done++;
+        const pct = Math.round((done / fileList.length) * 100);
+        fillEl.style.width = pct + '%';
+        pctEl.textContent = pct + '%';
+      }
+
+      textEl.textContent = `Done — ${done}/${fileList.length} files processed`;
+      log(`Upload batch complete: ${done}/${fileList.length}`, done === fileList.length ? 'ok' : 'warn');
+
+      setTimeout(() => progressEl.classList.add('hidden'), 3000);
+      renderFileList();
+      fileInput.value = '';
+    }
+
+    // ─── Quick Test Files ──────────────────────────────────────────────────────
+    function createTestFile(type) {
+      if (!token) return log('Sign in first', 'warn');
+
+      let blob, name;
+      if (type === 'image') {
+        // Create a small PNG test image
+        const canvas = document.createElement('canvas');
+        canvas.width = 200;
+        canvas.height = 200;
+        const ctx = canvas.getContext('2d');
+        // Gradient background
+        const grad = ctx.createLinearGradient(0, 0, 200, 200);
+        grad.addColorStop(0, '#6366f1');
+        grad.addColorStop(1, '#ec4899');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 200, 200);
+        // Text
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('SaintsHub Test', 100, 90);
+        ctx.font = '12px sans-serif';
+        ctx.fillText(new Date().toLocaleTimeString(), 100, 120);
+
+        canvas.toBlob((b) => {
+          const file = new File([b], `test-image-${Date.now()}.png`, { type: 'image/png' });
+          handleFiles([file]);
+        }, 'image/png');
+        return;
+      }
+
+      if (type === 'document') {
+        // Create a tiny valid PDF
+        const pdfContent = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>>>endobj
+4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000242 00000 n 
+trailer<</Root 1 0 R/Size 5>>
+startxref
+311
+%%EOF`;
+        blob = new Blob([pdfContent], { type: 'application/pdf' });
+        name = `test-document-${Date.now()}.pdf`;
+        const file = new File([blob], name, { type: 'application/pdf' });
+        handleFiles([file]);
+      }
+    }
+
+    // ─── File List ─────────────────────────────────────────────────────────────
+    function renderFileList() {
+      const el = document.getElementById('file-list');
+      if (!uploadedFiles.length) {
+        el.innerHTML = '<p style="color:var(--text-dim);font-size:13px">No files uploaded yet.</p>';
+        return;
+      }
+
+      el.innerHTML = uploadedFiles.map((f, i) => {
+        const icon = f.mediaType === 'image' ? '🖼' :
+                     f.mediaType === 'audio' ? '🎵' :
+                     f.mediaType === 'video' ? '🎬' : '📄';
+
+        const preview = f.mediaType === 'image'
+          ? `<img class="file-preview" src="${f.url}" alt="">`
+          : `<div class="file-preview">${icon}</div>`;
+
+        return `
+          <div class="file-item">
+            ${preview}
+            <div class="file-info">
+              <div class="file-name">${escapeHtml(f.name)}</div>
+              <div class="file-meta">${formatSize(f.size)} · ${f.mediaType}</div>
+              <div class="file-url" onclick="copyToClipboard('${f.url}')" title="Click to copy URL">${f.url}</div>
+            </div>
+            <div class="btn-group">
+              <a href="${f.url}" target="_blank" class="btn btn-sm btn-green">Open</a>
+              <button class="btn btn-sm btn-red" onclick="deleteFile(${i})">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ─── Delete ────────────────────────────────────────────────────────────────
+    async function deleteFile(index) {
+      const file = uploadedFiles[index];
+      if (!file) return;
+      if (!confirm(`Delete ${file.name}?`)) return;
+
+      log(`Deleting ${file.name} (key: ${file.key})...`);
+
+      try {
+        const res = await fetch(`${BASE}/api/media/delete`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ key: file.key }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          log(`Deleted: ${file.name}`, 'ok');
+          uploadedFiles.splice(index, 1);
+          renderFileList();
+        } else {
+          log(`Delete failed: ${data.message}`, 'err');
+        }
+      } catch (err) {
+        log(`Delete error: ${err.message}`, 'err');
+      }
+    }
+
+    // ─── Helpers ───────────────────────────────────────────────────────────────
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => log(`Copied URL: ${text}`, 'ok'));
+    }
+
+    // ─── Auto-run health check on load ─────────────────────────────────────────
+    window.addEventListener('load', () => {
+      log('Media tester ready — start by checking R2 health or signing in.');
+      checkR2Health();
+    });
+  </script>
+</body>
+</html>

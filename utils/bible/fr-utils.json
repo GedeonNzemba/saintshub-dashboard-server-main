@@ -1,0 +1,469 @@
+{
+    "language": "fr",
+    "name": "FRC97",
+    "description": "La Bible en français courant",
+    "books": [
+      {
+        "book_number": 10,
+        "short_name": "Gn",
+        "long_name": "Genèse",
+        "chapters": 50,
+        "verses": 1529
+      },
+      {
+        "book_number": 20,
+        "short_name": "Ex",
+        "long_name": "Exode",
+        "chapters": 40,
+        "verses": 1213
+      },
+      {
+        "book_number": 30,
+        "short_name": "Lv",
+        "long_name": "Lévitique",
+        "chapters": 27,
+        "verses": 859
+      },
+      {
+        "book_number": 40,
+        "short_name": "Nb",
+        "long_name": "Nombres",
+        "chapters": 36,
+        "verses": 1274
+      },
+      {
+        "book_number": 50,
+        "short_name": "Dt",
+        "long_name": "Deutéronome",
+        "chapters": 34,
+        "verses": 959
+      },
+      {
+        "book_number": 60,
+        "short_name": "Jos",
+        "long_name": "Josué",
+        "chapters": 24,
+        "verses": 658
+      },
+      {
+        "book_number": 70,
+        "short_name": "Jg",
+        "long_name": "Juges",
+        "chapters": 21,
+        "verses": 618
+      },
+      {
+        "book_number": 80,
+        "short_name": "Rt",
+        "long_name": "Ruth",
+        "chapters": 4,
+        "verses": 85
+      },
+      {
+        "book_number": 90,
+        "short_name": "1S",
+        "long_name": "Premier livre de Samuel",
+        "chapters": 31,
+        "verses": 811
+      },
+      {
+        "book_number": 100,
+        "short_name": "2S",
+        "long_name": "Deuxième livre de Samuel",
+        "chapters": 24,
+        "verses": 694
+      },
+      {
+        "book_number": 110,
+        "short_name": "1R",
+        "long_name": "Premier livre des Rois",
+        "chapters": 22,
+        "verses": 817
+      },
+      {
+        "book_number": 120,
+        "short_name": "2R",
+        "long_name": "Deuxième livre des Rois",
+        "chapters": 25,
+        "verses": 717
+      },
+      {
+        "book_number": 130,
+        "short_name": "1Ch",
+        "long_name": "Premier livre des Chroniques",
+        "chapters": 29,
+        "verses": 917
+      },
+      {
+        "book_number": 140,
+        "short_name": "2Ch",
+        "long_name": "Deuxième livre des Chroniques",
+        "chapters": 36,
+        "verses": 821
+      },
+      {
+        "book_number": 150,
+        "short_name": "Esd",
+        "long_name": "Esdras",
+        "chapters": 10,
+        "verses": 280
+      },
+      {
+        "book_number": 160,
+        "short_name": "Né",
+        "long_name": "Néhémie",
+        "chapters": 13,
+        "verses": 405
+      },
+      {
+        "book_number": 190,
+        "short_name": "Est",
+        "long_name": "Esther",
+        "chapters": 10,
+        "verses": 167
+      },
+      {
+        "book_number": 220,
+        "short_name": "Jb",
+        "long_name": "Job",
+        "chapters": 42,
+        "verses": 1069
+      },
+      {
+        "book_number": 230,
+        "short_name": "Ps",
+        "long_name": "Psaumes",
+        "chapters": 150,
+        "verses": 2526
+      },
+      {
+        "book_number": 240,
+        "short_name": "Pr",
+        "long_name": "Proverbes",
+        "chapters": 31,
+        "verses": 915
+      },
+      {
+        "book_number": 250,
+        "short_name": "Ec",
+        "long_name": "L’Ecclésiaste ou les paroles du Sage",
+        "chapters": 12,
+        "verses": 221
+      },
+      {
+        "book_number": 260,
+        "short_name": "Ct",
+        "long_name": "Cantique des Cantiques",
+        "chapters": 8,
+        "verses": 117
+      },
+      {
+        "book_number": 290,
+        "short_name": "És",
+        "long_name": "Ésaïe",
+        "chapters": 66,
+        "verses": 1291
+      },
+      {
+        "book_number": 300,
+        "short_name": "Jr",
+        "long_name": "Jérémie",
+        "chapters": 52,
+        "verses": 1364
+      },
+      {
+        "book_number": 310,
+        "short_name": "Lm",
+        "long_name": "Lamentations",
+        "chapters": 5,
+        "verses": 154
+      },
+      {
+        "book_number": 330,
+        "short_name": "Ez",
+        "long_name": "Ézékiel",
+        "chapters": 48,
+        "verses": 1273
+      },
+      {
+        "book_number": 340,
+        "short_name": "Dn",
+        "long_name": "Daniel",
+        "chapters": 12,
+        "verses": 356
+      },
+      {
+        "book_number": 350,
+        "short_name": "Os",
+        "long_name": "Osée",
+        "chapters": 14,
+        "verses": 197
+      },
+      {
+        "book_number": 360,
+        "short_name": "Jl",
+        "long_name": "Joël",
+        "chapters": 4,
+        "verses": 72
+      },
+      {
+        "book_number": 370,
+        "short_name": "Am",
+        "long_name": "Amos",
+        "chapters": 9,
+        "verses": 146
+      },
+      {
+        "book_number": 380,
+        "short_name": "Ab",
+        "long_name": "Abdias",
+        "chapters": 1,
+        "verses": 21
+      },
+      {
+        "book_number": 390,
+        "short_name": "Jon",
+        "long_name": "Jonas",
+        "chapters": 4,
+        "verses": 48
+      },
+      {
+        "book_number": 400,
+        "short_name": "Mi",
+        "long_name": "Michée",
+        "chapters": 7,
+        "verses": 105
+      },
+      {
+        "book_number": 410,
+        "short_name": "Na",
+        "long_name": "Nahoum",
+        "chapters": 3,
+        "verses": 47
+      },
+      {
+        "book_number": 420,
+        "short_name": "Ha",
+        "long_name": "Habacuc",
+        "chapters": 3,
+        "verses": 56
+      },
+      {
+        "book_number": 430,
+        "short_name": "So",
+        "long_name": "Sophonie",
+        "chapters": 3,
+        "verses": 53
+      },
+      {
+        "book_number": 440,
+        "short_name": "Ag",
+        "long_name": "Aggée",
+        "chapters": 2,
+        "verses": 38
+      },
+      {
+        "book_number": 450,
+        "short_name": "Za",
+        "long_name": "Zacharie",
+        "chapters": 14,
+        "verses": 211
+      },
+      {
+        "book_number": 460,
+        "short_name": "Ml",
+        "long_name": "Malachie",
+        "chapters": 3,
+        "verses": 55
+      },
+      {
+        "book_number": 470,
+        "short_name": "Mt",
+        "long_name": "Évangile selon Matthieu",
+        "chapters": 28,
+        "verses": 1071
+      },
+      {
+        "book_number": 480,
+        "short_name": "Mc",
+        "long_name": "Évangile selon Marc",
+        "chapters": 16,
+        "verses": 678
+      },
+      {
+        "book_number": 490,
+        "short_name": "Lc",
+        "long_name": "Évangile selon Luc",
+        "chapters": 24,
+        "verses": 1151
+      },
+      {
+        "book_number": 500,
+        "short_name": "Jn",
+        "long_name": "Évangile selon Jean",
+        "chapters": 21,
+        "verses": 879
+      },
+      {
+        "book_number": 510,
+        "short_name": "Ac",
+        "long_name": "Actes des Apôtres",
+        "chapters": 28,
+        "verses": 1007
+      },
+      {
+        "book_number": 520,
+        "short_name": "Rm",
+        "long_name": "Lettre aux Romains",
+        "chapters": 16,
+        "verses": 433
+      },
+      {
+        "book_number": 530,
+        "short_name": "1Co",
+        "long_name": "Première lettre aux Corinthiens",
+        "chapters": 16,
+        "verses": 436
+      },
+      {
+        "book_number": 540,
+        "short_name": "2Co",
+        "long_name": "Deuxième lettre aux Corinthiens",
+        "chapters": 13,
+        "verses": 256
+      },
+      {
+        "book_number": 550,
+        "short_name": "Ga",
+        "long_name": "Lettre aux Galates",
+        "chapters": 6,
+        "verses": 149
+      },
+      {
+        "book_number": 560,
+        "short_name": "Ep",
+        "long_name": "Lettre aux Éphésiens",
+        "chapters": 6,
+        "verses": 155
+      },
+      {
+        "book_number": 570,
+        "short_name": "Ph",
+        "long_name": "Lettre aux Philippiens",
+        "chapters": 4,
+        "verses": 104
+      },
+      {
+        "book_number": 580,
+        "short_name": "Col",
+        "long_name": "Lettre aux Colossiens",
+        "chapters": 4,
+        "verses": 95
+      },
+      {
+        "book_number": 590,
+        "short_name": "1Th",
+        "long_name": "Première lettre aux Thessaloniciens",
+        "chapters": 5,
+        "verses": 89
+      },
+      {
+        "book_number": 600,
+        "short_name": "2Th",
+        "long_name": "Deuxième lettre aux Thessaloniciens",
+        "chapters": 3,
+        "verses": 47
+      },
+      {
+        "book_number": 610,
+        "short_name": "1Tm",
+        "long_name": "Première lettre à Timothée",
+        "chapters": 6,
+        "verses": 113
+      },
+      {
+        "book_number": 620,
+        "short_name": "2Tm",
+        "long_name": "Deuxième lettre à Timothée",
+        "chapters": 4,
+        "verses": 83
+      },
+      {
+        "book_number": 630,
+        "short_name": "Tt",
+        "long_name": "Lettre à Tite",
+        "chapters": 3,
+        "verses": 46
+      },
+      {
+        "book_number": 640,
+        "short_name": "Phm",
+        "long_name": "Lettre à Philémon",
+        "chapters": 1,
+        "verses": 25
+      },
+      {
+        "book_number": 650,
+        "short_name": "Hé",
+        "long_name": "Lettre aux Hébreux",
+        "chapters": 13,
+        "verses": 303
+      },
+      {
+        "book_number": 660,
+        "short_name": "Jc",
+        "long_name": "Lettre de Jacques",
+        "chapters": 5,
+        "verses": 108
+      },
+      {
+        "book_number": 670,
+        "short_name": "1P",
+        "long_name": "Première lettre de Pierre",
+        "chapters": 5,
+        "verses": 105
+      },
+      {
+        "book_number": 680,
+        "short_name": "2P",
+        "long_name": "Deuxième lettre de Pierre",
+        "chapters": 3,
+        "verses": 61
+      },
+      {
+        "book_number": 690,
+        "short_name": "1Jn",
+        "long_name": "Première lettre de Jean",
+        "chapters": 5,
+        "verses": 105
+      },
+      {
+        "book_number": 700,
+        "short_name": "2Jn",
+        "long_name": "Deuxième lettre de Jean",
+        "chapters": 1,
+        "verses": 13
+      },
+      {
+        "book_number": 710,
+        "short_name": "3Jn",
+        "long_name": "Troisième lettre de Jean",
+        "chapters": 1,
+        "verses": 15
+      },
+      {
+        "book_number": 720,
+        "short_name": "Jd",
+        "long_name": "Lettre de Jude",
+        "chapters": 1,
+        "verses": 25
+      },
+      {
+        "book_number": 730,
+        "short_name": "Ap",
+        "long_name": "Apocalypse ou Révélation accordée à Jean",
+        "chapters": 22,
+        "verses": 405
+      }
+    ]
+  }

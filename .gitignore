@@ -1,0 +1,9 @@
+node_modules
+saintshub
+/dist
+.env*
+logs/
+*.log
+
+# windsurf rules
+.windsurfrules
