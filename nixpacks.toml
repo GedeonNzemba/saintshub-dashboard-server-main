@@ -4,7 +4,8 @@
 [phases.setup]
 # nodejs_20 provides both node and npm (needed because bun.lock confuses autodetect).
 # python3 is required for bcrypt native bindings compilation.
-nixPkgs = ["nodejs_20", "python3"]
+# yt-dlp + ffmpeg enable full-length YouTube audio streaming (falls back to Deezer 30s if absent).
+nixPkgs = ["nodejs_20", "python3", "yt-dlp", "ffmpeg"]
 
 [phases.install]
 # Install all deps (including devDependencies for TypeScript compilation).
