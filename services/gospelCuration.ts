@@ -59,6 +59,16 @@ export const CURATED_ARTISTS = {
     '2aKyKSggb31Kw9s9i3iXoo', // Aline Barros
     '4fdCGYM7dtJLa3LvR1ccto', // Gabriela Rocha
   ],
+  // ── Hymns / Christian Folk / Reformed Psalm ──
+  hymns: [
+    '3I7IkK6CPGWkxCw6TUhI7M', // Jamie Soles
+    '5IiNT28OGTIoBmsowfxleT', // Good Shepherd Band
+    '3hjYpUBTyp2v0JwuxRJGKR', // Nathan Clark George
+    '2hdb7np5QuW5y5fPG7Dnp8', // Neal Carpenter
+    '6SBWb2bT8ZqMK7kxnQUsUg', // Dan Meyers
+    '7CXRUTpr85rTnzDqhf0s2k', // My Soul Among Lions
+    '2a3OUnLZ0cSo8yu6JeXeYP', // Newfound Road
+  ],
 };
 
 // All artist IDs flattened for quick lookup
@@ -251,10 +261,12 @@ export async function buildGospelFeed(lang = 'en', market = 'US'): Promise<Gospe
         .slice(0, 3)
         .map(id => getArtistTopTracks(id, market).catch(() => ({ tracks: [] })))
     ),
-    // 8. Fetch hero artist profiles (top 6 for carousel)
+    // 8. Fetch hero artist profiles — primary category + hymns artists for carousel
     Promise.all(
-      (CURATED_ARTISTS[primaryArtistCategory] || CURATED_ARTISTS.worship)
-        .slice(0, 8)
+      [
+        ...(CURATED_ARTISTS[primaryArtistCategory] || CURATED_ARTISTS.worship),
+        ...CURATED_ARTISTS.hymns,
+      ]
         .map(id => getArtist(id).catch(() => null))
     ),
   ]);
@@ -293,6 +305,17 @@ export async function buildGospelFeed(lang = 'en', market = 'US'): Promise<Gospe
     // silent
   }
 
+  // ── Fetch hymns / christian folk artists for a dedicated section ──
+  let hymnsArtistProfiles: any[] = [];
+  try {
+    hymnsArtistProfiles = await Promise.all(
+      CURATED_ARTISTS.hymns.map(id => getArtist(id).catch(() => null))
+    );
+    hymnsArtistProfiles = hymnsArtistProfiles.filter(Boolean);
+  } catch {
+    // silent
+  }
+
   // ── Merge and deduplicate playlists ──
   const allPlaylists = [...worshipPlaylists, ...gospelPlaylists];
   const seenPlaylistIds = new Set<string>();
@@ -306,7 +329,7 @@ export async function buildGospelFeed(lang = 'en', market = 'US'): Promise<Gospe
 
   const sections: FeedSection[] = [];
 
-  // Featured Artists (circular avatars)
+  // Featured Artists (circular avatars) — worship + hymns artists merged
   if (heroArtists.length > 0) {
     sections.push({
       id: 'featured-artists',
@@ -379,6 +402,16 @@ export async function buildGospelFeed(lang = 'en', market = 'US'): Promise<Gospe
       title: t.gospelArtists,
       type: 'artists',
       items: gospelArtistProfiles,
+    });
+  }
+
+  // Hymns & Christian Folk
+  if (hymnsArtistProfiles.length > 0) {
+    sections.push({
+      id: 'hymns-artists',
+      title: lang === 'fr' ? 'Hymnes & Folk Chrétien' : 'Hymns & Christian Folk',
+      type: 'artists',
+      items: hymnsArtistProfiles,
     });
   }
 
